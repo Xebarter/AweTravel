@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar, MapPin, Users, DollarSign, Eye } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency';
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([
@@ -16,7 +17,7 @@ export default function BookingsPage() {
       passengerName: 'John Doe',
       seat: 'A05',
       status: 'Confirmed',
-      amount: '₦5,250',
+      amount: 5250,
       paymentStatus: 'Completed',
     },
     {
@@ -27,7 +28,7 @@ export default function BookingsPage() {
       passengerName: 'Jane Smith',
       seat: 'A10',
       status: 'Confirmed',
-      amount: '₦7,750',
+      amount: 7750,
       paymentStatus: 'Completed',
     },
     {
@@ -38,7 +39,7 @@ export default function BookingsPage() {
       passengerName: 'Ahmed Hassan',
       seat: 'B08',
       status: 'Completed',
-      amount: '₦4,050',
+      amount: 4050,
       paymentStatus: 'Completed',
     },
     {
@@ -49,7 +50,7 @@ export default function BookingsPage() {
       passengerName: 'Chioma Okafor',
       seat: 'A15',
       status: 'Pending',
-      amount: '₦5,250',
+      amount: 5250,
       paymentStatus: 'Pending',
     },
   ]);
@@ -70,10 +71,7 @@ export default function BookingsPage() {
   const stats = {
     totalBookings: bookings.length,
     confirmedBookings: bookings.filter(b => b.status === 'Confirmed').length,
-    totalRevenue: bookings.reduce((sum, b) => {
-      const amount = parseInt(b.amount.replace(/[₦,]/g, ''));
-      return sum + amount;
-    }, 0),
+    totalRevenue: bookings.reduce((sum, b) => sum + b.amount, 0),
     pendingPayments: bookings.filter(b => b.paymentStatus === 'Pending').length,
   };
 
@@ -104,7 +102,7 @@ export default function BookingsPage() {
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-              <p className="text-2xl font-bold text-accent">₦{stats.totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-accent">{formatCurrency(stats.totalRevenue)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -195,7 +193,7 @@ export default function BookingsPage() {
                     <div className="flex flex-col items-end gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Amount</p>
-                        <p className="text-2xl font-bold text-accent">{booking.amount}</p>
+                        <p className="text-2xl font-bold text-accent">{formatCurrency(booking.amount)}</p>
                       </div>
                       <Button variant="outline" size="sm" className="gap-2">
                         <Eye className="h-4 w-4" />

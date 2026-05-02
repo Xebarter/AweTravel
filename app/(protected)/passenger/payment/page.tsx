@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
+import { formatCurrency } from '@/lib/currency';
 import { CreditCard, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 function PaymentContent() {
@@ -228,7 +229,7 @@ function PaymentContent() {
                     disabled={loading}
                     className="w-full bg-accent hover:bg-accent-dark text-lg font-semibold py-6"
                   >
-                    {loading ? 'Processing Payment...' : `Pay ₦${bookingAmount.toLocaleString()}`}
+                    {loading ? 'Processing Payment...' : `Pay ${formatCurrency(bookingAmount)}`}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
@@ -254,15 +255,15 @@ function PaymentContent() {
                 <div className="border-t border-border pt-4">
                   <div className="flex justify-between mb-3">
                     <span className="text-sm text-muted-foreground">Ticket Price</span>
-                    <span className="font-medium text-foreground">₦{ticketPrice.toLocaleString()}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(ticketPrice)}</span>
                   </div>
                   <div className="flex justify-between mb-3">
                     <span className="text-sm text-muted-foreground">Platform Fee</span>
-                    <span className="font-medium text-foreground">₦{platformFee.toLocaleString()}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
                   </div>
                   <div className="flex justify-between pt-3 border-t border-border">
                     <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-lg text-accent">₦{bookingAmount.toLocaleString()}</span>
+                    <span className="font-bold text-lg text-accent">{formatCurrency(bookingAmount)}</span>
                   </div>
                 </div>
 

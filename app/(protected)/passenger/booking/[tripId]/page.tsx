@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { SeatSelector } from '@/components/passenger/SeatSelector';
 import { BookingSummary } from '@/components/passenger/BookingSummary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { Seat, AvailableRoute } from '@/lib/types';
 import { AlertCircle } from 'lucide-react';
 
@@ -268,7 +269,7 @@ export default function BookingPage({
                   <div className="p-3 bg-accent/10 rounded-lg border border-accent/20">
                     <p className="text-xs text-muted-foreground mb-1">Total Amount</p>
                     <p className="font-bold text-lg text-accent">
-                      ₦{(selectedSeat.base_price + Math.round(selectedSeat.base_price * 0.05)).toLocaleString()}
+                      {formatCurrency(selectedSeat.base_price + Math.round(selectedSeat.base_price * 0.05))}
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
                       Includes 5% platform fee

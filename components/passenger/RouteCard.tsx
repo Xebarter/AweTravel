@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { AvailableRoute } from '@/lib/types';
 import { Clock, MapPin, Users, DollarSign } from 'lucide-react';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ export function RouteCard({ route }: RouteCardProps) {
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground mb-1">From</p>
-              <p className="text-2xl font-bold text-accent">₦{minPrice.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-accent">{formatCurrency(minPrice)}</p>
             </div>
           </div>
 

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   {
     label: 'Dashboard',
-    href: '/transporter/dashboard',
+    href: '/transporter',
     icon: LayoutDashboard,
   },
   {

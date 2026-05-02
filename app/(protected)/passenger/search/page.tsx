@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { RouteCard } from '@/components/passenger/RouteCard';
+import { formatCurrency } from '@/lib/currency';
 import { AvailableRoute } from '@/lib/types';
 import { MapPin, Calendar, Filter, X } from 'lucide-react';
 
@@ -214,15 +215,17 @@ function SearchContent() {
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm text-muted-foreground">Below ₦5,000</span>
+                      <span className="text-sm text-muted-foreground">Below {formatCurrency(5000)}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm text-muted-foreground">₦5,000 - ₦10,000</span>
+                      <span className="text-sm text-muted-foreground">
+                        {formatCurrency(5000)} – {formatCurrency(10000)}
+                      </span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" className="rounded" defaultChecked />
-                      <span className="text-sm text-muted-foreground">Above ₦10,000</span>
+                      <span className="text-sm text-muted-foreground">Above {formatCurrency(10000)}</span>
                     </label>
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { DollarSign, TrendingUp, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/currency';
 
 export default function EarningsPage() {
   const monthlyEarnings = [
@@ -23,18 +24,18 @@ export default function EarningsPage() {
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
 
   const earningsSummary = {
-    totalEarnings: '₦2,800,000',
-    monthlyAverage: '₦560,000',
-    thisMonth: '₦750,000',
-    platformFees: '₦37,500',
-    netEarnings: '₦712,500',
+    totalEarnings: 2_800_000,
+    monthlyAverage: 560_000,
+    thisMonth: 750_000,
+    platformFees: 37_500,
+    netEarnings: 712_500,
   };
 
   const recentTransactions = [
-    { id: 1, date: '2024-05-20', booking: 'AWE-2024-0001234', amount: '₦5,250', type: 'Booking Payment' },
-    { id: 2, date: '2024-05-20', booking: 'AWE-2024-0001233', amount: '₦7,750', type: 'Booking Payment' },
-    { id: 3, date: '2024-05-19', booking: 'Platform Fee', amount: '-₦375', type: 'Fee' },
-    { id: 4, date: '2024-05-19', booking: 'AWE-2024-0001232', amount: '₦4,050', type: 'Booking Payment' },
+    { id: 1, date: '2024-05-20', booking: 'AWE-2024-0001234', amount: 5250, type: 'Booking Payment' },
+    { id: 2, date: '2024-05-20', booking: 'AWE-2024-0001233', amount: 7750, type: 'Booking Payment' },
+    { id: 3, date: '2024-05-19', booking: 'Platform Fee', amount: -375, type: 'Fee' },
+    { id: 4, date: '2024-05-19', booking: 'AWE-2024-0001232', amount: 4050, type: 'Booking Payment' },
   ];
 
   return (
@@ -60,31 +61,31 @@ export default function EarningsPage() {
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Total Earnings</p>
-              <p className="text-2xl font-bold text-foreground">{earningsSummary.totalEarnings}</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(earningsSummary.totalEarnings)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Monthly Average</p>
-              <p className="text-2xl font-bold text-accent">{earningsSummary.monthlyAverage}</p>
+              <p className="text-2xl font-bold text-accent">{formatCurrency(earningsSummary.monthlyAverage)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">This Month</p>
-              <p className="text-2xl font-bold text-success">{earningsSummary.thisMonth}</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(earningsSummary.thisMonth)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Platform Fees</p>
-              <p className="text-2xl font-bold text-destructive">{earningsSummary.platformFees}</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(earningsSummary.platformFees)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Net Earnings</p>
-              <p className="text-2xl font-bold text-primary">{earningsSummary.netEarnings}</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(earningsSummary.netEarnings)}</p>
             </CardContent>
           </Card>
         </div>
@@ -103,7 +104,7 @@ export default function EarningsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
                   <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
                   <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
@@ -135,7 +136,7 @@ export default function EarningsPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `₦${value.toLocaleString()}`} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -158,11 +159,9 @@ export default function EarningsPage() {
                     <p className="text-xs text-muted-foreground mt-1">{transaction.date}</p>
                   </div>
                   <p className={`font-bold text-lg ${
-                    transaction.amount.startsWith('-')
-                      ? 'text-destructive'
-                      : 'text-success'
+                    transaction.amount < 0 ? 'text-destructive' : 'text-success'
                   }`}>
-                    {transaction.amount}
+                    {formatCurrency(transaction.amount)}
                   </p>
                 </div>
               ))}

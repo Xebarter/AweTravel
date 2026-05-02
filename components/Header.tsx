@@ -20,9 +20,9 @@ export function Header() {
 
   const getDashboardUrl = () => {
     if (!profile) return '/';
-    if (profile.user_type === 'admin') return '/admin/dashboard';
-    if (profile.user_type === 'transporter') return '/transporter/dashboard';
-    return '/passenger/dashboard';
+    if (profile.user_type === 'admin') return '/admin';
+    if (profile.user_type === 'transporter') return '/transporter';
+    return '/passenger';
   };
 
   const getNavLinks = () => {
@@ -31,13 +31,13 @@ export function Header() {
     switch (profile.user_type) {
       case 'admin':
         return [
-          { href: '/admin/dashboard', label: 'Dashboard' },
+          { href: '/admin', label: 'Dashboard' },
           { href: '/admin/users', label: 'Users' },
           { href: '/admin/companies', label: 'Companies' },
         ];
       case 'transporter':
         return [
-          { href: '/transporter/dashboard', label: 'Dashboard' },
+          { href: '/transporter', label: 'Dashboard' },
           { href: '/transporter/routes', label: 'Routes' },
           { href: '/transporter/vehicles', label: 'Vehicles' },
           { href: '/transporter/schedules', label: 'Schedules' },
@@ -47,7 +47,7 @@ export function Header() {
       case 'passenger':
       default:
         return [
-          { href: '/passenger/dashboard', label: 'Dashboard' },
+          { href: '/passenger', label: 'Dashboard' },
           { href: '/passenger/bookings', label: 'My Bookings' },
         ];
     }

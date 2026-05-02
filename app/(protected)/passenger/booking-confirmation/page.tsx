@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/currency';
 import { Download, Share2, CheckCircle, MapPin, Calendar, Clock, Users, DollarSign } from 'lucide-react';
 
 function ConfirmationContent() {
@@ -108,15 +109,15 @@ function ConfirmationContent() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Ticket Price</span>
-                  <span className="font-medium text-foreground">₦{confirmation.ticketPrice.toLocaleString()}</span>
+                  <span className="font-medium text-foreground">{formatCurrency(confirmation.ticketPrice)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Platform Fee</span>
-                  <span className="font-medium text-foreground">₦{confirmation.platformFee.toLocaleString()}</span>
+                  <span className="font-medium text-foreground">{formatCurrency(confirmation.platformFee)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-border">
                   <span className="font-semibold text-foreground">Total Paid</span>
-                  <span className="font-bold text-lg text-accent">₦{confirmation.totalAmount.toLocaleString()}</span>
+                  <span className="font-bold text-lg text-accent">{formatCurrency(confirmation.totalAmount)}</span>
                 </div>
               </div>
             </div>
@@ -153,7 +154,7 @@ function ConfirmationContent() {
               View All Bookings
             </Button>
           </Link>
-          <Link href="/passenger/dashboard" className="flex-1">
+          <Link href="/passenger" className="flex-1">
             <Button className="w-full bg-accent hover:bg-accent-dark">
               Back to Dashboard
             </Button>

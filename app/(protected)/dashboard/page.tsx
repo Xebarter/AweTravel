@@ -12,11 +12,11 @@ export default function DashboardPage() {
     if (!profile) return;
 
     if (profile.user_type === 'admin') {
-      router.push('/admin/dashboard');
+      router.push('/admin');
     } else if (profile.user_type === 'transporter') {
-      router.push('/transporter/dashboard');
+      router.push('/transporter');
     } else {
-      router.push('/passenger/dashboard');
+      router.push('/passenger');
     }
   }, [profile, router]);
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, DollarSign, Ticket } from 'lucide-react';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/currency';
 
 export default function BookingsPage() {
   const bookings = [
@@ -15,7 +16,7 @@ export default function BookingsPage() {
       departureTime: '08:00 AM',
       seat: 'A05',
       status: 'Confirmed',
-      amount: '₦5,250',
+      amount: 5250,
       company: 'Premium Travel Ltd',
     },
     {
@@ -26,7 +27,7 @@ export default function BookingsPage() {
       departureTime: '02:00 PM',
       seat: 'B12',
       status: 'Completed',
-      amount: '₦3,750',
+      amount: 3750,
       company: 'Safe Journey Coaches',
     },
   ];
@@ -69,7 +70,7 @@ export default function BookingsPage() {
                     <div className="flex flex-col sm:items-end gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Amount</p>
-                        <p className="text-2xl font-bold text-accent">{booking.amount}</p>
+                        <p className="text-2xl font-bold text-accent">{formatCurrency(booking.amount)}</p>
                       </div>
                       <div className="flex gap-2">
                         <div className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -96,7 +97,7 @@ export default function BookingsPage() {
               <p className="text-sm text-muted-foreground mb-6">
                 Start your journey by booking a trip
               </p>
-              <Link href="/passenger/dashboard">
+              <Link href="/passenger">
                 <Button className="bg-accent hover:bg-accent-dark">
                   Find a Trip
                 </Button>

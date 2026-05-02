@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { formatCurrency } from '@/lib/currency';
 import { AvailableRoute } from '@/lib/types';
 import { Seat } from '@/lib/types';
-import { MapPin, Calendar, Users, DollarSign, Separator } from 'lucide-react';
+import { MapPin, Calendar } from 'lucide-react';
 
 interface BookingSummaryProps {
   route: AvailableRoute;
@@ -96,15 +98,15 @@ export function BookingSummary({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ticket Price</span>
-              <span className="font-medium text-foreground">₦{selectedSeat.base_price.toLocaleString()}</span>
+              <span className="font-medium text-foreground">{formatCurrency(selectedSeat.base_price)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Platform Fee (5%)</span>
-              <span className="font-medium text-foreground">₦{platformFee.toLocaleString()}</span>
+              <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-border">
               <span className="font-semibold text-foreground">Total Amount</span>
-              <span className="font-bold text-lg text-accent">₦{totalPrice.toLocaleString()}</span>
+              <span className="font-bold text-lg text-accent">{formatCurrency(totalPrice)}</span>
             </div>
           </div>
         </div>

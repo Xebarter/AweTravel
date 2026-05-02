@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       reference,
       status: 'success',
       amount: 5250,
-      currency: 'NGN',
+      currency: 'UGX',
       timestamp: new Date().toISOString(),
       message: 'Payment successful',
     };

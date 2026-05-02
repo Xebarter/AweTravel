@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/currency';
 import { Seat } from '@/lib/types';
 import { AlertCircle } from 'lucide-react';
 
@@ -54,7 +55,9 @@ export function SeatSelector({ seats, bookedSeats = [], onSelect }: SeatSelector
           {/* Regular Seats */}
           {seatsByType.regular.length > 0 && (
             <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-3">Regular Seats (₦5,000)</h4>
+              <h4 className="font-medium text-sm text-muted-foreground mb-3">
+                Regular Seats ({formatCurrency(5000)})
+              </h4>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {seatsByType.regular.map((seat) => {
                   const isBooked = bookedSeats.includes(seat.id);
@@ -84,7 +87,9 @@ export function SeatSelector({ seats, bookedSeats = [], onSelect }: SeatSelector
           {/* Premium Seats */}
           {seatsByType.premium.length > 0 && (
             <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-3">Premium Seats (₦7,500)</h4>
+              <h4 className="font-medium text-sm text-muted-foreground mb-3">
+                Premium Seats ({formatCurrency(7500)})
+              </h4>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {seatsByType.premium.map((seat) => {
                   const isBooked = bookedSeats.includes(seat.id);
@@ -114,7 +119,9 @@ export function SeatSelector({ seats, bookedSeats = [], onSelect }: SeatSelector
           {/* Handicap Seats */}
           {seatsByType.handicap.length > 0 && (
             <div>
-              <h4 className="font-medium text-sm text-muted-foreground mb-3">Accessible Seats (₦5,000)</h4>
+              <h4 className="font-medium text-sm text-muted-foreground mb-3">
+                Accessible Seats ({formatCurrency(5000)})
+              </h4>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {seatsByType.handicap.map((seat) => {
                   const isBooked = bookedSeats.includes(seat.id);
@@ -149,7 +156,7 @@ export function SeatSelector({ seats, bookedSeats = [], onSelect }: SeatSelector
               Selected Seat: <span className="text-accent font-bold">{selectedSeat.seat_number}</span>
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Price: <span className="text-accent font-semibold">₦{selectedSeat.base_price.toLocaleString()}</span>
+              Price: <span className="text-accent font-semibold">{formatCurrency(selectedSeat.base_price)}</span>
             </p>
           </div>
         )}

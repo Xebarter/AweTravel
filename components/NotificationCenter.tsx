@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/currency';
 import { Card } from '@/components/ui/card';
 
 export interface Notification {
@@ -27,7 +28,7 @@ export function NotificationCenter() {
     {
       id: '2',
       title: 'Payment Received',
-      message: '₦5,250 payment received for booking AWE-2024-0001234',
+      message: `${formatCurrency(5250)} payment received for booking AWE-2024-0001234`,
       type: 'success',
       read: false,
       timestamp: new Date(Date.now() - 15 * 60000),
