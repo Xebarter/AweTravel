@@ -37,11 +37,15 @@ export function DashboardHeader() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" title="Profile">
-              <User className="h-4 w-4" />
+            <Button variant="ghost" size="sm" title="Profile" asChild>
+              <Link href="/transporter/profile">
+                <User className="h-4 w-4" />
+              </Link>
             </Button>
-            <Button variant="ghost" size="sm" title="Settings">
-              <Settings className="h-4 w-4" />
+            <Button variant="ghost" size="sm" title="Preferences" asChild>
+              <Link href="/transporter/profile?tab=preferences">
+                <Settings className="h-4 w-4" />
+              </Link>
             </Button>
             <Button
               variant="ghost"

@@ -9,9 +9,9 @@ export default function TransporterLayout({
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader />
-      <div className="flex flex-1">
+      <div className="flex min-w-0 flex-1">
         <TransporterSidebar />
-        <main className="flex-1">
+        <main className="min-w-0 flex-1">
           {children}
         </main>
       </div>

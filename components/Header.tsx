@@ -43,6 +43,7 @@ export function Header() {
           { href: '/transporter/schedules', label: 'Schedules' },
           { href: '/transporter/bookings', label: 'Bookings' },
           { href: '/transporter/earnings', label: 'Earnings' },
+          { href: '/transporter/profile', label: 'Profile' },
         ];
       case 'passenger':
       default:
