@@ -1,4 +1,4 @@
-import { DashboardHeader } from '@/components/shared/DashboardHeader';
+import { SiteFooter } from '@/components/site/SiteFooter';
 
 export default function PassengerLayout({
   children,
@@ -6,11 +6,9 @@ export default function PassengerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <DashboardHeader />
-      <main className="flex-1">
-        {children}
-      </main>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1">{children}</div>
+      <SiteFooter />
     </div>
   );
 }

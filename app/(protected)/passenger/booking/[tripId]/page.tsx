@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { SeatSelector } from '@/components/passenger/SeatSelector';
@@ -83,6 +83,11 @@ export default function BookingPage({
 
   const route = mockRoute; // In production, fetch based on tripId
 
+  useEffect(() => {
+    if (!selectedSeat) return;
+    router.prefetch(`/passenger/payment?tripId=${params.tripId}&seatId=${selectedSeat.id}`);
+  }, [selectedSeat, params.tripId, router]);
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -130,8 +135,9 @@ export default function BookingPage({
       // For now, simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Redirect to payment page
-      router.push(`/passenger/payment?tripId=${params.tripId}&seatId=${selectedSeat.id}`);
+      const payUrl = `/passenger/payment?tripId=${params.tripId}&seatId=${selectedSeat.id}`;
+      router.prefetch(payUrl);
+      router.push(payUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to confirm booking');
     } finally {
@@ -241,7 +247,7 @@ export default function BookingPage({
 
           {/* Sidebar - Route Summary */}
           <div>
-            <Card className="border-border sticky top-20">
+            <Card className="border-border sticky top-16">
               <CardHeader>
                 <CardTitle className="text-lg">Trip Summary</CardTitle>
               </CardHeader>

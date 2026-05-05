@@ -1,16 +1,25 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import { LogOut, Settings, User, Menu } from 'lucide-react';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
+
+function isPassengerNavActive(href: string, pathname: string): boolean {
+  if (href === '/passenger/dashboard') {
+    return pathname === '/passenger/dashboard' || pathname === '/passenger';
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Header() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [showMenu, setShowMenu] = useState(false);
 
   const handleLogout = async () => {
@@ -20,9 +29,7 @@ export function Header() {
 
   const getDashboardUrl = () => {
     if (!profile) return '/';
-    if (profile.user_type === 'admin') return '/admin';
-    if (profile.user_type === 'transporter') return '/transporter';
-    return '/passenger';
+    return '/dashboard';
   };
 
   const getNavLinks = () => {
@@ -32,7 +39,7 @@ export function Header() {
       case 'admin':
         return [
           { href: '/admin', label: 'Dashboard' },
-          { href: '/admin/users', label: 'Users' },
+          { href: '/admin/users', label: 'Passengers' },
           { href: '/admin/companies', label: 'Companies' },
         ];
       case 'transporter':
@@ -48,8 +55,9 @@ export function Header() {
       case 'passenger':
       default:
         return [
-          { href: '/passenger', label: 'Dashboard' },
-          { href: '/passenger/bookings', label: 'My Bookings' },
+          { href: '/passenger/dashboard', label: 'Dashboard' },
+          { href: '/passenger/search', label: 'Find trips' },
+          { href: '/passenger/bookings', label: 'My bookings' },
         ];
     }
   };
@@ -68,13 +76,25 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {getNavLinks().map((link) => (
-              <Link key={link.href} href={link.href}>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
+            {getNavLinks().map((link) => {
+              const passengerActive =
+                profile?.user_type === 'passenger' && isPassengerNavActive(link.href, pathname);
+              return (
+                <Link key={link.href} href={link.href}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      passengerActive
+                        ? 'bg-background text-foreground shadow-sm ring-1 ring-border hover:bg-background hover:text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {link.label}
+                  </Button>
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Right Section */}
@@ -155,18 +175,27 @@ export function Header() {
         {/* Mobile Navigation */}
         {showMenu && (
           <div className="md:hidden pb-3 border-t border-border space-y-1">
-            {getNavLinks().map((link) => (
-              <Link key={link.href} href={link.href}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-sm"
-                  onClick={() => setShowMenu(false)}
-                >
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
+            {getNavLinks().map((link) => {
+              const passengerActive =
+                profile?.user_type === 'passenger' && isPassengerNavActive(link.href, pathname);
+              return (
+                <Link key={link.href} href={link.href}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'w-full justify-start text-sm',
+                      passengerActive
+                        ? 'bg-background text-foreground shadow-sm ring-1 ring-border hover:bg-background hover:text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => setShowMenu(false)}
+                  >
+                    {link.label}
+                  </Button>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

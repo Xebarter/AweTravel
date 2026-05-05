@@ -4,6 +4,9 @@ export type SignupUserType = 'passenger' | 'transporter';
 
 export type UserType = 'passenger' | 'transporter' | 'admin';
 
+/** Set for `user_type === 'transporter'` only; always null for passenger/admin. */
+export type TransporterApprovalStatus = 'pending' | 'approved' | 'rejected';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -13,6 +16,10 @@ export interface UserProfile {
   kyc_verified: boolean;
   profile_image?: string;
   created_at: string;
+  transporter_approval_status?: TransporterApprovalStatus | null;
+  transporter_approved_at?: string | null;
+  transporter_approved_by?: string | null;
+  transporter_rejection_reason?: string | null;
 }
 
 export interface TransportCompany {
@@ -113,6 +120,22 @@ export interface Booking {
   payment_status: PaymentStatus;
   payment_reference?: string;
   created_at: string;
+}
+
+/** Enriched row returned by `GET /api/bookings` for passenger UI (until backed by SQL). */
+export interface PassengerBookingListItem {
+  id: string;
+  bookingId: string;
+  tripId: string;
+  route: string;
+  seat: string;
+  date: string;
+  departureTime: string;
+  status: string;
+  amount: number;
+  paymentStatus: string;
+  company?: string;
+  createdAt: string;
 }
 
 export interface Transaction {

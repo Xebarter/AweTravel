@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,11 @@ function PaymentContent() {
 
   const tripId = searchParams.get('tripId') || '';
   const seatId = searchParams.get('seatId') || '';
+
+  useEffect(() => {
+    if (!tripId) return;
+    router.prefetch(`/passenger/booking-confirmation?tripId=${tripId}`);
+  }, [tripId, router]);
 
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
@@ -68,7 +73,9 @@ function PaymentContent() {
 
       // Redirect to booking confirmation after 2 seconds
       setTimeout(() => {
-        router.push(`/passenger/booking-confirmation?tripId=${tripId}`);
+        const next = `/passenger/booking-confirmation?tripId=${tripId}`;
+        router.prefetch(next);
+        router.push(next);
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
@@ -89,8 +96,8 @@ function PaymentContent() {
             <p className="text-muted-foreground mb-6">
               Your booking has been confirmed. Redirecting to confirmation page...
             </p>
-            <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-accent animate-pulse"></div>
+            <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
+              <div className="h-full animate-pulse bg-primary/30 dark:bg-primary/40" />
             </div>
           </CardContent>
         </Card>
@@ -242,7 +249,7 @@ function PaymentContent() {
 
           {/* Order Summary */}
           <div>
-            <Card className="border-border sticky top-20">
+            <Card className="border-border sticky top-16">
               <CardHeader>
                 <CardTitle className="text-lg">Order Summary</CardTitle>
               </CardHeader>

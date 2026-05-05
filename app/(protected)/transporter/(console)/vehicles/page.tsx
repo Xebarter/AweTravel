@@ -2,7 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,6 @@ import {
 } from '@/components/ui/empty';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -63,6 +62,12 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { AddVehicleDialog } from '@/components/transporter/AddVehicleDialog';
 import type { Vehicle, VehicleStatus } from '@/types/transporter-vehicle';
+import {
+  createTransporterVehicle,
+  deleteTransporterVehicle,
+  listTransporterVehicles,
+} from '@/lib/transporter-vehicles/client';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type SortKey =
   | 'registration'
@@ -72,39 +77,6 @@ type SortKey =
   | 'mileage'
   | 'lastMaintenance'
   | 'acquisitionDate';
-
-/** Deterministic demo fleet — replace with API + server pagination for production. */
-function createDemoVehicles(count: number): Vehicle[] {
-  const types = ['Bus', 'Minibus', 'Coach', 'Sprinter', 'Sedan shuttle'] as const;
-  const statusCycle: VehicleStatus[] = [
-    'active',
-    'active',
-    'active',
-    'maintenance',
-    'active',
-    'inactive',
-  ];
-  return Array.from({ length: count }, (_, i) => {
-    const n = i + 1;
-    const status = statusCycle[i % statusCycle.length];
-    const type = types[i % types.length];
-    const baseMileage = 12000 + (i * 137) % 98000;
-    const month = String((i % 12) + 1).padStart(2, '0');
-    const day = String((i % 27) + 1).padStart(2, '0');
-    return {
-      id: String(n),
-      registration: `LG-${2020 + (i % 6)}-${String((n * 17) % 900 + 100).slice(0, 3)}`,
-      type,
-      capacity: type === 'Sedan shuttle' ? 4 : type === 'Minibus' ? 18 : type === 'Coach' ? 56 : type === 'Sprinter' ? 14 : 45,
-      status,
-      lastMaintenance: `2024-${month}-${day}`,
-      mileage: baseMileage,
-      acquisitionDate: `20${String(18 + (i % 6)).padStart(2, '0')}-${month}-${day}`,
-    };
-  });
-}
-
-const DEMO_FLEET_SIZE = 180;
 
 function formatDate(iso: string) {
   const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''));
@@ -159,7 +131,10 @@ function vehicleVisuals(type: string): { Icon: LucideIcon; ring: string } {
 }
 
 export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => createDemoVehicles(DEMO_FLEET_SIZE));
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   /** Remount dialog when opening so Radix + form state stay in sync (avoids open no-op with React 19). */
   const [addVehicleNonce, setAddVehicleNonce] = useState(0);
@@ -174,6 +149,23 @@ export default function VehiclesPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await listTransporterVehicles();
+      setVehicles(data);
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : 'Could not load vehicles.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
   const stats = useMemo(() => {
     const active = vehicles.filter((v) => v.status === 'active').length;
@@ -246,24 +238,29 @@ export default function VehiclesPage() {
   const showingTo = Math.min(page * pageSize, totalFiltered);
 
   const vehicleToDelete = deleteId ? vehicles.find((v) => v.id === deleteId) : undefined;
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
-    setVehicles((prev) => prev.filter((v) => v.id !== deleteId));
-    setDeleteId(null);
+    setActionError(null);
+    setDeleteBusy(true);
+    try {
+      await deleteTransporterVehicle(deleteId);
+      setVehicles((prev) => prev.filter((v) => v.id !== deleteId));
+      setDeleteId(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Could not remove vehicle.');
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   const existingPlates = useMemo(() => vehicles.map((v) => v.registration), [vehicles]);
 
-  const handleCreateVehicle = (payload: Omit<Vehicle, 'id'>) => {
-    setVehicles((prev) => {
-      const maxNumeric = prev.reduce((m, v) => {
-        const n = Number(v.id);
-        return Number.isFinite(n) && n > m ? n : m;
-      }, 0);
-      const id = String(maxNumeric + 1);
-      return [{ id, ...payload }, ...prev];
-    });
+  const handleCreateVehicle = async (payload: Omit<Vehicle, 'id'>) => {
+    setActionError(null);
+    const created = await createTransporterVehicle(payload);
+    setVehicles((prev) => [created, ...prev]);
     setPage(1);
   };
 
@@ -336,6 +333,7 @@ export default function VehiclesPage() {
             type="button"
             className="h-11 w-full shrink-0 gap-2 bg-accent text-accent-foreground shadow-md hover:bg-accent/90 sm:h-10 md:w-auto"
             onClick={openAddVehicleDialog}
+            disabled={isLoading || !!loadError}
           >
             <Plus className="h-4 w-4" />
             Add vehicle
@@ -344,98 +342,143 @@ export default function VehiclesPage() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8 md:px-8">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-          <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 pt-6">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Truck className="h-5 w-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total vehicles</p>
-                <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">{stats.total}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 pt-6">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
-                <CircleCheck className="h-5 w-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active</p>
-                <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-success">
-                  {stats.active}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 pt-6">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
-                <Wrench className="h-5 w-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">In maintenance</p>
-                <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-warning">
-                  {stats.maintenance}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 pt-6">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                <Users className="h-5 w-5" aria-hidden />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total seats</p>
-                <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-accent">
-                  {stats.totalSeats}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {loadError && (
+          <Alert variant="destructive">
+            <AlertTitle>Could not load fleet</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{loadError}</span>
+              <Button type="button" variant="outline" size="sm" className="w-fit shrink-0" onClick={() => void reload()}>
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full min-w-0 max-w-lg flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              placeholder="Search by plate or vehicle type…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-11 border-border/80 bg-card pl-10 shadow-sm"
-              aria-label="Search vehicles"
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="mb-2 text-xs font-medium text-muted-foreground lg:hidden">Status</p>
-            <div className="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden lg:gap-2">
-              {filterOptions.map((opt) => (
-                <Button
-                  key={opt.value}
-                  type="button"
-                  variant={statusFilter === opt.value ? 'default' : 'outline'}
-                  size="sm"
-                  className={cn(
-                    'shrink-0 snap-start rounded-full px-4 touch-manipulation',
-                    statusFilter === opt.value && 'shadow-sm',
-                  )}
-                  onClick={() => setStatusFilter(opt.value)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
+        {!loadError && actionError && (
+          <Alert variant="destructive">
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
+        )}
+
+        {!loadError && (
+          <>
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="border-border/80 shadow-sm">
+                    <CardContent className="flex items-start gap-4 pt-6">
+                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-muted" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                        <div className="h-8 w-16 animate-pulse rounded bg-muted" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-4 pt-6">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Truck className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total vehicles</p>
+                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">{stats.total}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-4 pt-6">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
+                      <CircleCheck className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Active</p>
+                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-success">
+                        {stats.active}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-4 pt-6">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
+                      <Wrench className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">In maintenance</p>
+                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-warning">
+                        {stats.maintenance}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
+                  <CardContent className="flex items-start gap-4 pt-6">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+                      <Users className="h-5 w-5" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total seats</p>
+                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-accent">
+                        {stats.totalSeats}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative w-full min-w-0 max-w-lg flex-1">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  placeholder="Search by plate or vehicle type…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-11 border-border/80 bg-card pl-10 shadow-sm"
+                  aria-label="Search vehicles"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="mb-2 text-xs font-medium text-muted-foreground lg:hidden">Status</p>
+                <div className="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden lg:gap-2">
+                  {filterOptions.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={statusFilter === opt.value ? 'default' : 'outline'}
+                      size="sm"
+                      className={cn(
+                        'shrink-0 snap-start rounded-full px-4 touch-manipulation',
+                        statusFilter === opt.value && 'shadow-sm',
+                      )}
+                      onClick={() => setStatusFilter(opt.value)}
+                      disabled={isLoading}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <Separator className="bg-border/60" />
+            <Separator className="bg-border/60" />
 
-        {totalFiltered > 0 ? (
+            {isLoading ? (
+              <Card className="overflow-hidden border-border/80 shadow-sm">
+                <CardContent className="p-8">
+                  <div className="h-40 animate-pulse rounded-lg bg-muted sm:h-48" />
+                </CardContent>
+              </Card>
+            ) : totalFiltered > 0 ? (
           <Card className="overflow-hidden border-border/80 shadow-sm">
             <CardHeader className="flex flex-col gap-4 border-b border-border/60 bg-muted/20 px-4 pb-4 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
               <div className="min-w-0">
@@ -751,15 +794,17 @@ export default function VehiclesPage() {
               <EmptyMedia variant="icon">
                 <Truck className="h-6 w-6" />
               </EmptyMedia>
-              <EmptyTitle>No vehicles match</EmptyTitle>
+              <EmptyTitle>{vehicles.length === 0 ? 'No vehicles yet' : 'No vehicles match'}</EmptyTitle>
               <EmptyDescription>
-                {searchTerm || statusFilter !== 'all'
-                  ? 'Try another search term or clear the status filter.'
-                  : 'Register your first vehicle to start assigning routes and schedules.'}
+                {vehicles.length === 0
+                  ? 'Register your first vehicle to start assigning routes and schedules.'
+                  : searchTerm || statusFilter !== 'all'
+                    ? 'Try another search term or clear the status filter.'
+                    : 'Register your first vehicle to start assigning routes and schedules.'}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              {(searchTerm || statusFilter !== 'all') && (
+              {vehicles.length > 0 && (searchTerm || statusFilter !== 'all') && (
                 <Button
                   type="button"
                   variant="outline"
@@ -782,6 +827,8 @@ export default function VehiclesPage() {
             </EmptyContent>
           </Empty>
         )}
+          </>
+        )}
       </div>
 
       <AddVehicleDialog
@@ -803,13 +850,15 @@ export default function VehiclesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel disabled={deleteBusy}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={handleDelete}
+              disabled={deleteBusy}
+              onClick={() => void handleDelete()}
             >
-              Remove vehicle
-            </AlertDialogAction>
+              {deleteBusy ? 'Removing…' : 'Remove vehicle'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Building2, CreditCard, BarChart3, Settings } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  CreditCard,
+  BarChart3,
+  Settings,
+  Megaphone,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -12,7 +20,7 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    label: 'Users',
+    label: 'Passengers',
     href: '/admin/users',
     icon: Users,
   },
@@ -20,6 +28,11 @@ const navItems = [
     label: 'Transporters',
     href: '/admin/transporters',
     icon: Building2,
+  },
+  {
+    label: 'Home ads',
+    href: '/admin/home-ads',
+    icon: Megaphone,
   },
   {
     label: 'Transactions',
@@ -46,7 +59,12 @@ export function AdminSidebar() {
       <nav className="p-6 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
+          const isSectionRoot = navItems.some(
+            (other) => other.href !== item.href && other.href.startsWith(`${item.href}/`),
+          );
+          const isActive = isSectionRoot
+            ? pathname === item.href || pathname === `${item.href}/`
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link

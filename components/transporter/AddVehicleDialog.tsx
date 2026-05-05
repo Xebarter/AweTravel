@@ -93,13 +93,14 @@ type AddVehicleDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingPlates: string[];
-  onCreate: (vehicle: NewVehiclePayload) => void;
+  onCreate: (vehicle: NewVehiclePayload) => void | Promise<void>;
 };
 
 export function AddVehicleDialog({ open, onOpenChange, existingPlates, onCreate }: AddVehicleDialogProps) {
   const formId = useId();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const plateSet = useMemo(
     () => new Set(existingPlates.map((p) => p.trim().toUpperCase()).filter(Boolean)),
@@ -125,7 +126,7 @@ export function AddVehicleDialog({ open, onOpenChange, existingPlates, onCreate 
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
 
@@ -180,8 +181,16 @@ export function AddVehicleDialog({ open, onOpenChange, existingPlates, onCreate 
       gpsTracked: form.gpsTracked,
     };
 
-    onCreate(payload);
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onCreate(payload);
+      onOpenChange(false);
+      setForm(emptyForm());
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not save vehicle.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -457,11 +466,16 @@ export function AddVehicleDialog({ open, onOpenChange, existingPlates, onCreate 
         </form>
 
         <DialogFooter className="shrink-0 gap-2 border-t bg-card px-5 py-4 sm:px-6">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit" form={formId} className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
-            Add to fleet
+          <Button
+            type="submit"
+            form={formId}
+            disabled={isSubmitting}
+            className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            {isSubmitting ? 'Saving…' : 'Add to fleet'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, Building2, MapPin, Truck, AlertCircle, TrendingUp } from 'lucide-react';
+import { Users, Building2, MapPin, Truck, AlertCircle, TrendingUp, Bus, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { APP_CURRENCY_CODE, formatCurrency } from '@/lib/currency';
 
@@ -222,13 +222,25 @@ export default function AdminDashboard() {
               <Link href="/admin/users">
                 <Button variant="outline" className="w-full justify-start">
                   <Users className="h-4 w-4 mr-2" />
-                  Manage Users
+                  Passengers
+                </Button>
+              </Link>
+              <Link href="/admin/transporters">
+                <Button variant="outline" className="w-full justify-start">
+                  <Bus className="h-4 w-4 mr-2" />
+                  Transporters
                 </Button>
               </Link>
               <Link href="/admin/companies">
                 <Button variant="outline" className="w-full justify-start">
                   <Building2 className="h-4 w-4 mr-2" />
                   Manage Companies
+                </Button>
+              </Link>
+              <Link href="/admin/transactions">
+                <Button variant="outline" className="w-full justify-start">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Transactions and disbursements
                 </Button>
               </Link>
               <Button variant="outline" className="w-full justify-start">

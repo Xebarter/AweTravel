@@ -154,7 +154,7 @@ function ConfirmationContent() {
               View All Bookings
             </Button>
           </Link>
-          <Link href="/passenger" className="flex-1">
+          <Link href="/passenger/dashboard" className="flex-1">
             <Button className="w-full bg-accent hover:bg-accent-dark">
               Back to Dashboard
             </Button>

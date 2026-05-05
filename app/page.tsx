@@ -1,60 +1,30 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
+import { SiteFooter } from '@/components/site/SiteFooter';
+import { HomeAdBanner } from '@/components/site/HomeAdBanner';
+import { SiteHeader } from '@/components/site/SiteHeader';
 import { MapPin, Users, TrendingUp, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (user) {
-    if (router.prefetch) {
+  useEffect(() => {
+    if (user && router.prefetch) {
       router.prefetch('/dashboard');
     }
-  }
+  }, [user, router]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-              <span className="text-white font-bold text-lg">A</span>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">AweTravel</h1>
-          </div>
+      <SiteHeader />
 
-          <div className="flex items-center gap-4">
-            {user ? (
-              <Button onClick={() => router.push('/dashboard')}>Dashboard</Button>
-            ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="outline">Sign In</Button>
-                </Link>
-                <Link href="/signup">
-                  <Button className="bg-accent hover:bg-accent-dark">Get Started</Button>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+      <HomeAdBanner />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
@@ -67,8 +37,19 @@ export default function HomePage() {
             <p className="text-lg text-muted-foreground max-w-lg">
               AweTravel connects passengers and transport companies on a single platform. Find routes, compare prices, and book your tickets instantly.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              {user ? (
+            <div className="flex min-h-12 flex-col gap-4 sm:min-h-11 sm:flex-row sm:items-center">
+              {isLoading ? (
+                <>
+                  <div
+                    className="h-11 w-full max-w-44 animate-pulse rounded-md bg-muted sm:w-44"
+                    aria-hidden
+                  />
+                  <div
+                    className="h-11 w-full max-w-26 animate-pulse rounded-md bg-muted sm:w-28"
+                    aria-hidden
+                  />
+                </>
+              ) : user ? (
                 <Button
                   size="lg"
                   className="bg-accent hover:bg-accent-dark"
@@ -98,7 +79,7 @@ export default function HomePage() {
           </div>
 
           <div className="hidden md:block">
-            <div className="relative w-full aspect-square rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+            <div className="relative flex aspect-square w-full items-center justify-center rounded-2xl bg-linear-to-br from-primary/20 to-accent/20">
               <div className="text-center">
                 <div className="inline-block p-8 bg-white rounded-xl shadow-lg mb-4">
                   <MapPin className="h-16 w-16 text-accent" />
@@ -156,7 +137,7 @@ export default function HomePage() {
           <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
             Join thousands of travelers and transport operators who trust AweTravel for safe, convenient, and affordable travel.
           </p>
-          {!user && (
+          {!isLoading && !user && (
             <Link href="/signup">
               <Button size="lg" className="bg-accent hover:bg-accent-dark">
                 Get Started Today
@@ -167,12 +148,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-muted-foreground text-sm">
-          <p>&copy; 2024 AweTravel. All rights reserved.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
