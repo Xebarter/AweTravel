@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency } from '@/lib/currency';
+import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
+import { fetchPublicPlatformSettings } from '@/lib/platform-settings/public-client';
 import { CreditCard, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 function PaymentContent() {
@@ -33,10 +35,23 @@ function PaymentContent() {
     cvv: '',
   });
 
-  // Mock booking details
-  const bookingAmount = 7500; // Price + platform fee
-  const platformFee = Math.round(bookingAmount * 0.05 / 1.05);
-  const ticketPrice = bookingAmount - platformFee;
+  const [platformFeeBps, setPlatformFeeBps] = useState(DEFAULT_PLATFORM_FEE_BPS);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const s = await fetchPublicPlatformSettings();
+      if (!cancelled) setPlatformFeeBps(s.platformFeeBps);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Mock booking details (total includes platform fee per current bps)
+  const bookingAmount = 7500;
+  const ticketPrice = Math.round(bookingAmount / (1 + platformFeeBps / 10000));
+  const platformFee = bookingAmount - ticketPrice;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

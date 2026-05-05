@@ -8,6 +8,8 @@ import { BookingSummary } from '@/components/passenger/BookingSummary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
 import { Seat, AvailableRoute } from '@/lib/types';
+import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
+import { fetchPublicPlatformSettings, platformFeeFromBps } from '@/lib/platform-settings/public-client';
 import { AlertCircle } from 'lucide-react';
 
 // Mock data - in production, fetch from API
@@ -80,8 +82,20 @@ export default function BookingPage({
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [platformFeeBps, setPlatformFeeBps] = useState(DEFAULT_PLATFORM_FEE_BPS);
 
   const route = mockRoute; // In production, fetch based on tripId
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const s = await fetchPublicPlatformSettings();
+      if (!cancelled) setPlatformFeeBps(s.platformFeeBps);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedSeat) return;
@@ -239,6 +253,7 @@ export default function BookingPage({
                 selectedSeat={selectedSeat}
                 passengerName={profile.full_name}
                 passengerEmail={profile.email}
+                platformFeeBps={platformFeeBps}
                 onConfirm={handleConfirmBooking}
                 isLoading={loading}
               />
@@ -275,10 +290,12 @@ export default function BookingPage({
                   <div className="p-3 bg-accent/10 rounded-lg border border-accent/20">
                     <p className="text-xs text-muted-foreground mb-1">Total Amount</p>
                     <p className="font-bold text-lg text-accent">
-                      {formatCurrency(selectedSeat.base_price + Math.round(selectedSeat.base_price * 0.05))}
+                      {formatCurrency(
+                        selectedSeat.base_price + platformFeeFromBps(selectedSeat.base_price, platformFeeBps),
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Includes 5% platform fee
+                      Includes platform fee ({platformFeeBps % 100 === 0 ? platformFeeBps / 100 : (platformFeeBps / 100).toFixed(2).replace(/\.?0+$/, '')}%)
                     </p>
                   </div>
                 )}

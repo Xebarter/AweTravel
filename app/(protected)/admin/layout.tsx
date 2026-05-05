@@ -1,4 +1,3 @@
-import { DashboardHeader } from '@/components/shared/DashboardHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
 export default function AdminLayout({
@@ -7,13 +6,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <DashboardHeader />
-      <div className="flex flex-1">
+    <div className="flex min-h-0 flex-1 flex-col bg-background">
+      <div className="flex min-h-0 flex-1">
         <AdminSidebar />
-        <main className="flex-1">
-          {children}
-        </main>
+        <main className="min-h-0 flex-1">{children}</main>
       </div>
     </div>
   );

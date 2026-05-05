@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/currency';
 import { AvailableRoute } from '@/lib/types';
 import { Seat } from '@/lib/types';
+import { platformFeeFromBps } from '@/lib/platform-settings/public-client';
 import { MapPin, Calendar } from 'lucide-react';
 
 interface BookingSummaryProps {
@@ -13,6 +14,8 @@ interface BookingSummaryProps {
   selectedSeat: Seat;
   passengerName: string;
   passengerEmail: string;
+  /** Basis points (e.g. 500 = 5%). */
+  platformFeeBps: number;
   onConfirm: () => void;
   isLoading?: boolean;
 }
@@ -22,11 +25,16 @@ export function BookingSummary({
   selectedSeat,
   passengerName,
   passengerEmail,
+  platformFeeBps,
   onConfirm,
   isLoading = false,
 }: BookingSummaryProps) {
-  const platformFee = Math.round(selectedSeat.base_price * 0.05); // 5% platform fee
+  const platformFee = platformFeeFromBps(selectedSeat.base_price, platformFeeBps);
   const totalPrice = selectedSeat.base_price + platformFee;
+  const feePctLabel =
+    platformFeeBps % 100 === 0
+      ? String(platformFeeBps / 100)
+      : (platformFeeBps / 100).toFixed(2).replace(/\.?0+$/, '');
 
   return (
     <Card className="border-border">
@@ -101,7 +109,7 @@ export function BookingSummary({
               <span className="font-medium text-foreground">{formatCurrency(selectedSeat.base_price)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Platform Fee (5%)</span>
+              <span className="text-muted-foreground">Platform Fee ({feePctLabel}%)</span>
               <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-border">
