@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Bell, Building2, Loader2, Lock, Mail, Phone, Shield, UserRound } from 'lucide-react';
+import { Bell, Building2, Globe, Loader2, Lock, Mail, MapPin, Phone, Shield, UserRound } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { APP_CURRENCY_CODE } from '@/lib/currency';
@@ -104,6 +104,28 @@ function TransporterProfilePageInner() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  const [companyForm, setCompanyForm] = useState({
+    company_name: '',
+    trading_name: '',
+    support_email: '',
+    support_phone: '',
+    ops_email: '',
+    ops_phone: '',
+    website: '',
+    logo_url: '',
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    region: '',
+    country: 'Uganda',
+    registration_number: '',
+    tax_id: '',
+    about: '',
+  });
+  const [companyLoading, setCompanyLoading] = useState(false);
+  const [companySaving, setCompanySaving] = useState(false);
+  const [companyMessage, setCompanyMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
   const [prefs, setPrefs] = useState<TransporterPrefs>(defaultPrefs);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [prefsDirty, setPrefsDirty] = useState(false);
@@ -134,6 +156,53 @@ function TransporterProfilePageInner() {
       });
     }
   }, [profile, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setCompanyLoading(true);
+    setCompanyMessage(null);
+    void (async () => {
+      const { data, error } = await supabase
+        .from('transporter_company_profiles')
+        .select('*')
+        .eq('owner_user_id', user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) {
+        setCompanyMessage({ type: 'err', text: error.message });
+        setCompanyLoading(false);
+        return;
+      }
+
+      if (data) {
+        setCompanyForm({
+          company_name: data.company_name ?? '',
+          trading_name: data.trading_name ?? '',
+          support_email: data.support_email ?? '',
+          support_phone: data.support_phone ?? '',
+          ops_email: data.ops_email ?? '',
+          ops_phone: data.ops_phone ?? '',
+          website: data.website ?? '',
+          logo_url: data.logo_url ?? '',
+          address_line1: data.address_line1 ?? '',
+          address_line2: data.address_line2 ?? '',
+          city: data.city ?? '',
+          region: data.region ?? '',
+          country: data.country ?? 'Uganda',
+          registration_number: data.registration_number ?? '',
+          tax_id: data.tax_id ?? '',
+          about: data.about ?? '',
+        });
+      }
+      setCompanyLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     setPrefs(loadPrefs());
@@ -188,6 +257,49 @@ function TransporterProfilePageInner() {
       });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleSaveCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setCompanyMessage(null);
+    setCompanySaving(true);
+    try {
+      const payload = {
+        owner_user_id: user.id,
+        company_name: companyForm.company_name.trim(),
+        trading_name: companyForm.trading_name.trim() || null,
+        support_email: companyForm.support_email.trim().toLowerCase() || null,
+        support_phone: companyForm.support_phone.trim() || null,
+        ops_email: companyForm.ops_email.trim().toLowerCase() || null,
+        ops_phone: companyForm.ops_phone.trim() || null,
+        website: companyForm.website.trim() || null,
+        logo_url: companyForm.logo_url.trim() || null,
+        address_line1: companyForm.address_line1.trim() || null,
+        address_line2: companyForm.address_line2.trim() || null,
+        city: companyForm.city.trim() || null,
+        region: companyForm.region.trim() || null,
+        country: companyForm.country.trim() || 'Uganda',
+        registration_number: companyForm.registration_number.trim() || null,
+        tax_id: companyForm.tax_id.trim() || null,
+        about: companyForm.about.trim() || null,
+      };
+
+      if (!payload.company_name) {
+        setCompanyMessage({ type: 'err', text: 'Company name is required.' });
+        return;
+      }
+
+      const { error } = await supabase.from('transporter_company_profiles').upsert(payload, {
+        onConflict: 'owner_user_id',
+      });
+      if (error) throw error;
+      setCompanyMessage({ type: 'ok', text: 'Company profile saved.' });
+    } catch (err) {
+      setCompanyMessage({ type: 'err', text: err instanceof Error ? err.message : 'Could not save company profile.' });
+    } finally {
+      setCompanySaving(false);
     }
   };
 
@@ -275,28 +387,34 @@ function TransporterProfilePageInner() {
   }
 
   return (
-    <div className="min-h-screen pb-[max(3rem,env(safe-area-inset-bottom,0px))] sm:pb-12">
-      <div className="relative overflow-hidden bg-linear-to-br from-primary via-primary to-primary/90 text-primary-foreground">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
-        <div className="relative flex flex-col gap-4 px-4 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:py-8 md:px-8">
-          <div className="min-w-0 space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-              <UserRound className="h-3.5 w-3.5" aria-hidden />
-              Account
+    <div className="min-h-0 bg-muted/20 pb-12 dark:bg-background">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Transport operations
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.9rem] sm:leading-tight">
+                Profile &amp; settings
+              </h1>
+              <p className="max-w-2xl pt-1 text-sm leading-relaxed text-muted-foreground">
+                Keep your company info accurate for passengers and staff, and manage sign-in details securely.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Profile &amp; settings</h1>
-            <p className="max-w-2xl text-sm text-primary-foreground/80 sm:text-base">
-              Identity and contact details sync to your AweTravel account. Preferences stay on this browser until fleet
-              settings are centralized in your workspace.
-            </p>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-8 border-border/80 bg-background shadow-sm" asChild>
+                <Link href="/transporter/verification">Verification</Link>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 md:px-8">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={(v) => setTab(parseTab(v))} className="gap-6">
-          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 p-1 sm:w-auto sm:grid-cols-none sm:inline-flex">
+          <TabsList className="h-9 rounded-lg border border-border/70 bg-background p-1 shadow-sm">
             <TabsTrigger value="profile" className="gap-1.5 px-3 py-2">
               <UserRound className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -312,126 +430,380 @@ function TransporterProfilePageInner() {
           </TabsList>
 
           <TabsContent value="profile" className="mt-0 space-y-6 outline-none">
-            <Card className="border-border/80 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Public profile</CardTitle>
-                <CardDescription>
-                  Shown on receipts and internal crew views. Email is managed under Security.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                  <Avatar className="size-20 border-2 border-border shadow-sm">
-                    {profileForm.profile_image ? (
-                      <AvatarImage src={profileForm.profile_image} alt="" />
-                    ) : null}
-                    <AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">
-                      {initials(profileForm.full_name || profile?.full_name || '?')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="font-medium text-foreground">
-                      {profileForm.full_name || profile?.full_name || 'Your name'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <Badge variant="secondary" className="capitalize">
-                        {profile?.user_type ?? 'transporter'}
-                      </Badge>
-                      {profile?.kyc_verified ? (
-                        <Badge className="border-0 bg-success/15 text-success">KYC verified</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-warning">
-                          KYC pending
-                        </Badge>
-                      )}
-                      {memberSince && (
-                        <span className="text-xs text-muted-foreground">Member since {memberSince}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <form onSubmit={handleSaveProfile} className="space-y-4">
-                  {profileMessage && (
-                    <Alert variant={profileMessage.type === 'err' ? 'destructive' : 'default'}>
-                      <AlertTitle>{profileMessage.type === 'ok' ? 'Saved' : 'Error'}</AlertTitle>
-                      <AlertDescription>{profileMessage.text}</AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="full_name">Full name</Label>
-                      <Input
-                        id="full_name"
-                        value={profileForm.full_name}
-                        onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))}
-                        required
-                        autoComplete="name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <div className="relative">
-                        <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          className="pl-9"
-                          value={profileForm.phone}
-                          onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))}
-                          placeholder="+256 …"
-                          autoComplete="tel"
-                        />
+            <div className="grid gap-6 lg:grid-cols-12">
+              <div className="space-y-6 lg:col-span-8">
+                <Card className="border-border/80 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Account owner</CardTitle>
+                    <CardDescription>Personal details for the person managing this transport company.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <Avatar className="size-20 border-2 border-border shadow-sm">
+                        {profileForm.profile_image ? <AvatarImage src={profileForm.profile_image} alt="" /> : null}
+                        <AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">
+                          {initials(profileForm.full_name || profile?.full_name || '?')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="font-medium text-foreground">{profileForm.full_name || profile?.full_name || 'Your name'}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Badge variant="secondary" className="capitalize">
+                            {profile?.user_type ?? 'transporter'}
+                          </Badge>
+                          {profile?.kyc_verified ? (
+                            <Badge className="border-0 bg-success/15 text-success">KYC verified</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-warning">
+                              KYC pending
+                            </Badge>
+                          )}
+                          {memberSince && <span className="text-xs text-muted-foreground">Member since {memberSince}</span>}
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="profile_image">Photo URL</Label>
-                      <Input
-                        id="profile_image"
-                        value={profileForm.profile_image}
-                        onChange={(e) => setProfileForm((f) => ({ ...f, profile_image: e.target.value }))}
-                        placeholder="https://…"
-                        type="url"
-                        inputMode="url"
-                      />
-                      <p className="text-xs text-muted-foreground">Paste a public image URL (e.g. from your storage).</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={profileSaving} className="gap-2 min-w-32">
-                      {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Save profile
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
 
-            <Card className="border-border/80 shadow-sm">
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div>
+                    <Separator />
+
+                    <form onSubmit={handleSaveProfile} className="space-y-4">
+                      {profileMessage && (
+                        <Alert variant={profileMessage.type === 'err' ? 'destructive' : 'default'}>
+                          <AlertTitle>{profileMessage.type === 'ok' ? 'Saved' : 'Error'}</AlertTitle>
+                          <AlertDescription>{profileMessage.text}</AlertDescription>
+                        </Alert>
+                      )}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label htmlFor="full_name">Full name</Label>
+                          <Input
+                            id="full_name"
+                            value={profileForm.full_name}
+                            onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))}
+                            required
+                            autoComplete="name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone</Label>
+                          <div className="relative">
+                            <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              id="phone"
+                              className="pl-9"
+                              value={profileForm.phone}
+                              onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))}
+                              placeholder="+256 …"
+                              autoComplete="tel"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_image">Photo URL</Label>
+                          <Input
+                            id="profile_image"
+                            value={profileForm.profile_image}
+                            onChange={(e) => setProfileForm((f) => ({ ...f, profile_image: e.target.value }))}
+                            placeholder="https://…"
+                            type="url"
+                            inputMode="url"
+                          />
+                          <p className="text-xs text-muted-foreground">Paste a public image URL (e.g. from your storage).</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button type="submit" disabled={profileSaving} className="gap-2 min-w-32">
+                          {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Save owner profile
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/80 shadow-sm">
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Transport company profile</CardTitle>
+                        <CardDescription>What passengers and internal teams use to identify your company.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {companyMessage && (
+                      <Alert variant={companyMessage.type === 'err' ? 'destructive' : 'default'}>
+                        <AlertTitle>{companyMessage.type === 'ok' ? 'Saved' : 'Error'}</AlertTitle>
+                        <AlertDescription>{companyMessage.text}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {companyLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        Loading company profile…
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSaveCompany} className="space-y-6">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="company_name">Company name</Label>
+                            <Input
+                              id="company_name"
+                              value={companyForm.company_name}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, company_name: e.target.value }))}
+                              placeholder="e.g. Awe Express Coaches"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="trading_name">Trading name (optional)</Label>
+                            <Input
+                              id="trading_name"
+                              value={companyForm.trading_name}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, trading_name: e.target.value }))}
+                              placeholder="e.g. Awe Express"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="website">Website (optional)</Label>
+                            <div className="relative">
+                              <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                id="website"
+                                className="pl-9"
+                                value={companyForm.website}
+                                onChange={(e) => setCompanyForm((f) => ({ ...f, website: e.target.value }))}
+                                placeholder="https://…"
+                                type="url"
+                                inputMode="url"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="logo_url">Company logo URL (optional)</Label>
+                            <Input
+                              id="logo_url"
+                              value={companyForm.logo_url}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, logo_url: e.target.value }))}
+                              placeholder="https://…"
+                              type="url"
+                              inputMode="url"
+                            />
+                            <p className="text-xs text-muted-foreground">Used in passenger views and receipts when available.</p>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="support_email">Support email</Label>
+                            <Input
+                              id="support_email"
+                              value={companyForm.support_email}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, support_email: e.target.value }))}
+                              placeholder="support@company.com"
+                              type="email"
+                              inputMode="email"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="support_phone">Support phone</Label>
+                            <div className="relative">
+                              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                id="support_phone"
+                                className="pl-9"
+                                value={companyForm.support_phone}
+                                onChange={(e) => setCompanyForm((f) => ({ ...f, support_phone: e.target.value }))}
+                                placeholder="+256 …"
+                                autoComplete="tel"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="ops_email">Operations email (optional)</Label>
+                            <Input
+                              id="ops_email"
+                              value={companyForm.ops_email}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, ops_email: e.target.value }))}
+                              placeholder="ops@company.com"
+                              type="email"
+                              inputMode="email"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="ops_phone">Operations phone (optional)</Label>
+                            <div className="relative">
+                              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                id="ops_phone"
+                                className="pl-9"
+                                value={companyForm.ops_phone}
+                                onChange={(e) => setCompanyForm((f) => ({ ...f, ops_phone: e.target.value }))}
+                                placeholder="+256 …"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="address_line1">Address</Label>
+                            <div className="relative">
+                              <MapPin className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                id="address_line1"
+                                className="pl-9"
+                                value={companyForm.address_line1}
+                                onChange={(e) => setCompanyForm((f) => ({ ...f, address_line1: e.target.value }))}
+                                placeholder="Street / building"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="address_line2">Address line 2 (optional)</Label>
+                            <Input
+                              id="address_line2"
+                              value={companyForm.address_line2}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, address_line2: e.target.value }))}
+                              placeholder="Area / landmark"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="city">City</Label>
+                            <Input id="city" value={companyForm.city} onChange={(e) => setCompanyForm((f) => ({ ...f, city: e.target.value }))} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="region">Region / District</Label>
+                            <Input
+                              id="region"
+                              value={companyForm.region}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, region: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="country">Country</Label>
+                            <Input
+                              id="country"
+                              value={companyForm.country}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, country: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="registration_number">Registration number (optional)</Label>
+                            <Input
+                              id="registration_number"
+                              value={companyForm.registration_number}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, registration_number: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="tax_id">Tax ID (optional)</Label>
+                            <Input id="tax_id" value={companyForm.tax_id} onChange={(e) => setCompanyForm((f) => ({ ...f, tax_id: e.target.value }))} />
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="about">About (optional)</Label>
+                            <Input
+                              id="about"
+                              value={companyForm.about}
+                              onChange={(e) => setCompanyForm((f) => ({ ...f, about: e.target.value }))}
+                              placeholder="Short description used in partner views"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button type="submit" disabled={companySaving} className="gap-2 min-w-40">
+                            {companySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Save company profile
+                          </Button>
+                        </div>
+                      </form>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/80 shadow-sm">
+                  <CardHeader>
                     <CardTitle className="text-lg">Fleet &amp; compliance</CardTitle>
-                    <CardDescription>
-                      Company registration and verification live in the verification flow.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Complete KYC to unlock payouts and show a verified badge to passengers.
-                </p>
-                <Button variant="secondary" asChild>
-                  <Link href="/transporter/verification">Go to verification</Link>
-                </Button>
-              </CardContent>
-            </Card>
+                    <CardDescription>Verification unlocks payouts and a trusted badge for passengers.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Complete KYC to unlock payouts and show a verified badge to passengers.
+                    </p>
+                    <Button variant="secondary" asChild>
+                      <Link href="/transporter/verification">Go to verification</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6 lg:col-span-4">
+                <Card className="border-border/80 shadow-sm lg:sticky lg:top-24">
+                  <CardHeader>
+                    <CardTitle className="text-base">Company preview</CardTitle>
+                    <CardDescription className="text-xs">A quick sanity-check for what you’re about to publish.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-12 border border-border">
+                        {companyForm.logo_url ? <AvatarImage src={companyForm.logo_url} alt="" /> : null}
+                        <AvatarFallback className="bg-muted text-sm font-semibold">
+                          {initials(companyForm.company_name || 'Company')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{companyForm.company_name || 'Company name'}</div>
+                        <div className="truncate text-xs text-muted-foreground">{companyForm.trading_name || '—'}</div>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        <span className="truncate">{companyForm.support_phone || companyForm.ops_phone || 'No phone set'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span className="truncate">{companyForm.support_email || companyForm.ops_email || 'No email set'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        <span className="truncate">{companyForm.website || 'No website'}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span className="line-clamp-2">
+                          {[
+                            companyForm.address_line1,
+                            companyForm.address_line2,
+                            companyForm.city,
+                            companyForm.region,
+                            companyForm.country,
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || 'No address set'}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
           </TabsContent>
 
           <TabsContent value="preferences" className="mt-0 space-y-6 outline-none">

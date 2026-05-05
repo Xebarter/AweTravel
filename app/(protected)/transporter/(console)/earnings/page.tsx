@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Download, HandCoins, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
-import { getTransporterEarnings } from '@/lib/transporter-earnings/client';
+import { getTransporterEarningSources, getTransporterEarnings, type TransporterEarningSourceItem } from '@/lib/transporter-earnings/client';
 import {
   cancelTransporterPayoutRequest,
   createTransporterPayoutRequest,
@@ -33,6 +33,14 @@ export default function EarningsPage() {
   const [recent, setRecent] = useState<
     { id: string; date: string; label: string; amount: number; status: string; reference: string | null }[]
   >([]);
+  const [sources, setSources] = useState<TransporterEarningSourceItem[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
+  const [sourceRouteId, setSourceRouteId] = useState<string>('all');
+  const [sourceFromDate, setSourceFromDate] = useState<string>('');
+  const [sourceToDate, setSourceToDate] = useState<string>('');
+  const [sourceQuery, setSourceQuery] = useState<string>('');
+  const [activeSource, setActiveSource] = useState<TransporterEarningSourceItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [payoutRequests, setPayoutRequests] = useState<TransporterPayoutRequest[]>([]);
@@ -77,6 +85,26 @@ export default function EarningsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setSourcesLoading(true);
+    setSourcesError(null);
+    void (async () => {
+      try {
+        const res = await getTransporterEarningSources({ limit: 250 });
+        if (cancelled) return;
+        setSources(res.items ?? []);
+      } catch (e: unknown) {
+        if (!cancelled) setSourcesError(e instanceof Error ? e.message : 'Failed to load earning sources.');
+      } finally {
+        if (!cancelled) setSourcesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function refreshPayoutRequests() {
     setPayoutLoading(true);
     setPayoutError(null);
@@ -111,6 +139,19 @@ export default function EarningsPage() {
       setLoadError(e instanceof Error ? e.message : 'Failed to load earnings.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refreshSources() {
+    setSourcesLoading(true);
+    setSourcesError(null);
+    try {
+      const res = await getTransporterEarningSources({ limit: 250 });
+      setSources(res.items ?? []);
+    } catch (e: unknown) {
+      setSourcesError(e instanceof Error ? e.message : 'Failed to load earning sources.');
+    } finally {
+      setSourcesLoading(false);
     }
   }
 
@@ -175,6 +216,46 @@ export default function EarningsPage() {
   }, [summary]);
 
   const recentTransactions = recent;
+
+  const availableRoutes = useMemo(() => {
+    const seen = new Map<string, { id: string; label: string }>();
+    for (const s of sources) {
+      if (!s.route) continue;
+      if (seen.has(s.route.id)) continue;
+      seen.set(s.route.id, {
+        id: s.route.id,
+        label: `${s.route.routeCode} · ${s.route.origin} → ${s.route.destination}`,
+      });
+    }
+    return Array.from(seen.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [sources]);
+
+  const filteredSources = useMemo(() => {
+    const q = sourceQuery.trim().toLowerCase();
+    const from = sourceFromDate ? `${sourceFromDate}T00:00:00.000Z` : null;
+    const to = sourceToDate ? `${sourceToDate}T23:59:59.999Z` : null;
+
+    return sources.filter((s) => {
+      if (sourceRouteId !== 'all' && s.route?.id !== sourceRouteId) return false;
+
+      const earnedAt = s.earnedAt ?? s.bookedAt;
+      if (from && earnedAt && earnedAt < from) return false;
+      if (to && earnedAt && earnedAt > to) return false;
+
+      if (!q) return true;
+      const hay = [
+        s.bookingCode,
+        s.paymentReference ?? '',
+        s.transaction?.reference ?? '',
+        s.route ? `${s.route.routeCode} ${s.route.origin} ${s.route.destination}` : '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [sources, sourceRouteId, sourceFromDate, sourceToDate, sourceQuery]);
+
+  const sourcesTotalMinor = useMemo(() => filteredSources.reduce((sum, s) => sum + Number(s.amountMinor ?? 0), 0), [filteredSources]);
 
   const trendData = useMemo(() => {
     // Simple 6-bucket trend from recent rows: not perfect, but gives transporters a quick feel
@@ -271,6 +352,7 @@ export default function EarningsPage() {
           <TabsList className="mb-6 h-9 rounded-lg border border-border/70 bg-background p-1 shadow-sm">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="sources">Sources</TabsTrigger>
             <TabsTrigger value="payouts">Payouts</TabsTrigger>
           </TabsList>
 
@@ -475,6 +557,205 @@ export default function EarningsPage() {
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="sources">
+            <Card className="border-border/80 shadow-sm">
+              <CardHeader className="border-b border-border/60 bg-muted/20">
+                <CardTitle className="text-base font-semibold">Earning sources</CardTitle>
+                <CardDescription className="text-xs">
+                  See exactly which trip/booking generated each earning, and when the payment completed
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {sourcesError ? (
+                  <div className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                    {sourcesError}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-3 lg:grid-cols-12">
+                  <div className="lg:col-span-4">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Route</label>
+                    <Select value={sourceRouteId} onValueChange={setSourceRouteId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All routes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All routes</SelectItem>
+                        {availableRoutes.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">From</label>
+                    <Input type="date" value={sourceFromDate} onChange={(e) => setSourceFromDate(e.target.value)} />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">To</label>
+                    <Input type="date" value={sourceToDate} onChange={(e) => setSourceToDate(e.target.value)} />
+                  </div>
+
+                  <div className="lg:col-span-3">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Search</label>
+                    <Input
+                      placeholder="Booking code, reference…"
+                      value={sourceQuery}
+                      onChange={(e) => setSourceQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-end lg:col-span-1">
+                    <Button type="button" variant="secondary" className="w-full" onClick={() => void refreshSources()} disabled={sourcesLoading}>
+                      {sourcesLoading ? '…' : 'Refresh'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
+                  <div className="text-muted-foreground">
+                    Showing <span className="font-medium text-foreground">{filteredSources.length}</span> items
+                  </div>
+                  <div className="font-semibold tabular-nums">{formatCurrency(sourcesTotalMinor / 100)}</div>
+                </div>
+
+                {sourcesLoading ? (
+                  <div className="text-sm text-muted-foreground">Loading…</div>
+                ) : filteredSources.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No matching earnings yet.</div>
+                ) : (
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Earned at</TableHead>
+                          <TableHead>Trip</TableHead>
+                          <TableHead>Booking</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead className="text-right">Details</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSources.slice(0, 100).map((s) => {
+                          const earnedAt = (s.earnedAt ?? s.bookedAt).slice(0, 16).replace('T', ' ');
+                          const trip = s.route ? `${s.route.origin} → ${s.route.destination}` : '—';
+                          const departure = s.departure?.departureTime ? ` · ${String(s.departure.departureTime).slice(0, 5)}` : '';
+                          const ref = s.transaction?.reference ?? s.paymentReference ?? '—';
+                          return (
+                            <TableRow key={s.bookingId}>
+                              <TableCell className="whitespace-nowrap">{earnedAt}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="truncate">
+                                  {trip}
+                                  <span className="text-muted-foreground">{departure}</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground">{s.travelDate}</div>
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <div className="truncate">{s.bookingCode}</div>
+                                <div className="text-xs text-muted-foreground">Seat {s.seatCode}</div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={statusBadgeVariant(s.transaction?.status ?? 'completed')}>
+                                  {s.transaction?.status ?? 'completed'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[240px] truncate text-muted-foreground">{ref}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatCurrency(s.amountMinor / 100)}</TableCell>
+                              <TableCell className="text-right">
+                                <Button size="sm" variant="secondary" onClick={() => setActiveSource(s)}>
+                                  View
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    <div className="text-xs text-muted-foreground">Showing the first 100 rows. Use filters to narrow down.</div>
+                  </>
+                )}
+
+                <Dialog open={!!activeSource} onOpenChange={(o) => setActiveSource(o ? activeSource : null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Trip earning details</DialogTitle>
+                      <DialogDescription>See the exact source and the time the payment was completed.</DialogDescription>
+                    </DialogHeader>
+
+                    {activeSource ? (
+                      <div className="space-y-4 text-sm">
+                        <div className="rounded-lg border bg-muted/20 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">
+                                {activeSource.route
+                                  ? `${activeSource.route.routeCode} · ${activeSource.route.origin} → ${activeSource.route.destination}`
+                                  : 'Trip'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Travel date: {activeSource.travelDate}
+                                {activeSource.departure?.departureTime
+                                  ? ` · Departure: ${String(activeSource.departure.departureTime).slice(0, 5)}`
+                                  : ''}
+                              </div>
+                            </div>
+                            <div className="text-right font-semibold tabular-nums">{formatCurrency(activeSource.amountMinor / 100)}</div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg border bg-background p-3">
+                            <div className="text-xs font-medium text-muted-foreground">Booking</div>
+                            <div className="mt-1 font-medium">{activeSource.bookingCode}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">Seat: {activeSource.seatCode}</div>
+                          </div>
+                          <div className="rounded-lg border bg-background p-3">
+                            <div className="text-xs font-medium text-muted-foreground">Earnings came in</div>
+                            <div className="mt-1 font-medium">
+                              {(activeSource.earnedAt ?? activeSource.bookedAt).slice(0, 19).replace('T', ' ')}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Status: {activeSource.transaction?.status ?? 'completed'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border bg-background p-3">
+                          <div className="text-xs font-medium text-muted-foreground">References</div>
+                          <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                            <div>
+                              Payment ref: <span className="font-medium text-foreground">{activeSource.paymentReference ?? '—'}</span>
+                            </div>
+                            <div>
+                              Transaction ref:{' '}
+                              <span className="font-medium text-foreground">{activeSource.transaction?.reference ?? '—'}</span>
+                            </div>
+                            <div>
+                              Transaction id:{' '}
+                              <span className="font-medium text-foreground">{activeSource.transaction?.id ?? '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <DialogFooter>
+                      <Button variant="secondary" onClick={() => setActiveSource(null)}>
+                        Close
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </TabsContent>
