@@ -69,6 +69,11 @@ export const routeCreateSchema = z
       .min(1, 'Duration must be at least 1 minute')
       .max(10080),
     vehicleClass: vehicleClassSchema,
+    passengerSeatingCapacity: z.coerce
+      .number()
+      .int()
+      .min(1, 'At least 1 passenger seat')
+      .max(120, 'At most 120 passenger seats'),
     basePriceMinor: z.coerce.number().int().min(0).default(0),
     currency: z.string().trim().min(3).max(8).default('UGX'),
     status: routeStatusSchema.default('active'),

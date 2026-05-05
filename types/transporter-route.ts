@@ -73,6 +73,8 @@ export type Route = {
   distanceKm: number;
   durationMinutes: number;
   vehicleClass: VehicleClass;
+  /** Sellable seats on this route; passenger booking map uses min(this, departure vehicle capacity). */
+  passengerSeatingCapacity: number;
   basePriceMinor: number;
   currency: string;
   status: RouteStatus;

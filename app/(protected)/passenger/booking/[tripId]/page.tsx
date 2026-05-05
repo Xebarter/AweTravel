@@ -293,7 +293,7 @@ export default function BookingPage() {
 
   if (tripLoading) {
     return (
-      <div className="min-h-screen pb-12 bg-gradient-to-br from-background to-secondary/30">
+      <div className="min-h-screen pb-12 bg-linear-to-br from-background to-secondary/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-48 w-full rounded-xl" />
@@ -305,7 +305,7 @@ export default function BookingPage() {
 
   if (tripError || !route) {
     return (
-      <div className="min-h-screen pb-12 bg-gradient-to-br from-background to-secondary/30">
+      <div className="min-h-screen pb-12 bg-linear-to-br from-background to-secondary/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="border-destructive/30">
             <CardHeader>
@@ -327,7 +327,7 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen pb-12 bg-gradient-to-br from-background to-secondary/30">
+    <div className="min-h-screen pb-12 bg-linear-to-br from-background to-secondary/30">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Booking</h1>
@@ -385,7 +385,7 @@ export default function BookingPage() {
 
         {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
@@ -426,6 +426,9 @@ export default function BookingPage() {
                   seats={route.available_seats}
                   bookedSeats={bookedSeatCodes}
                   onSelect={handleSeatSelect}
+                  vehicleType={route.vehicle.vehicle_type}
+                  registration={route.vehicle.vehicle_registration}
+                  routeLabel={`${route.route.origin_city} → ${route.route.destination_city}`}
                 />
 
                 <div className="flex gap-4">

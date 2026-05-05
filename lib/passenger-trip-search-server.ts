@@ -26,6 +26,8 @@ export type QueryTripSearchResultsOk = {
   sort: TripSearchSort;
 };
 
+const MAX_PASSENGER_SEATS = 120;
+
 type RouteRow = {
   id: string;
   owner_user_id: string;
@@ -35,9 +37,24 @@ type RouteRow = {
   distance_km: number;
   duration_minutes: number;
   vehicle_class: string;
+  passenger_seating_capacity: number;
   base_price_minor: number;
   currency: string;
 };
+
+/** Sellable seats for UI: route cap, limited by physical vehicle when known. */
+function effectivePassengerSeatCount(
+  routePassengerSeatingCapacity: number,
+  vehicleCapacity: number | null | undefined,
+): number {
+  const routeCap = Math.max(
+    1,
+    Math.min(MAX_PASSENGER_SEATS, Math.floor(Number(routePassengerSeatingCapacity) || 50)),
+  );
+  if (vehicleCapacity == null || !Number.isFinite(vehicleCapacity)) return routeCap;
+  const phys = Math.max(1, Math.min(MAX_PASSENGER_SEATS, Math.floor(vehicleCapacity)));
+  return Math.min(routeCap, phys);
+}
 
 type DepartureRow = {
   id: string;
@@ -152,7 +169,7 @@ export async function queryTripSearchResults(
   let routesQuery = admin
     .from('transporter_routes')
     .select(
-      'id,owner_user_id,route_code,origin,destination,distance_km,duration_minutes,vehicle_class,base_price_minor,currency',
+      'id,owner_user_id,route_code,origin,destination,distance_km,duration_minutes,vehicle_class,passenger_seating_capacity,base_price_minor,currency',
     )
     .eq('status', 'active')
     .order('created_at', { ascending: false })
@@ -266,6 +283,7 @@ export async function queryTripSearchResults(
     const deps = departuresByRoute.get(r.id) ?? [];
     if (deps.length === 0) {
       const basePrice = r.base_price_minor ?? 0;
+      const totalSeats = effectivePassengerSeatCount(r.passenger_seating_capacity, null);
       results.push({
         trip_id: r.id,
         route: {
@@ -294,13 +312,13 @@ export async function queryTripSearchResults(
           company_id: r.owner_user_id,
           vehicle_registration: '',
           vehicle_type: routeTypeFromVehicleClass(r.vehicle_class),
-          capacity: 50,
+          capacity: totalSeats,
           current_status: 'active',
           created_at: new Date(0).toISOString(),
         },
         company: companyObj,
-        available_seats: makeSeats(50, basePrice),
-        total_seats: 50,
+        available_seats: makeSeats(totalSeats, basePrice),
+        total_seats: totalSeats,
         booked_seats: 0,
       });
       continue;
@@ -308,7 +326,7 @@ export async function queryTripSearchResults(
 
     for (const d of deps) {
       const vehicle = d.vehicle_id ? vehicleById.get(d.vehicle_id) : undefined;
-      const totalSeats = vehicle?.capacity ?? 50;
+      const totalSeats = effectivePassengerSeatCount(r.passenger_seating_capacity, vehicle?.capacity);
       const booked = bookedCounts.get(bookedKey(r.id, d.id)) ?? 0;
       const available = Math.max(0, totalSeats - booked);
       const price = typeof d.price_override_minor === 'number' ? d.price_override_minor : r.base_price_minor ?? 0;
@@ -396,7 +414,7 @@ export async function fetchDepartureBookingPageData(
   const { data: route, error: routeErr } = await admin
     .from('transporter_routes')
     .select(
-      'id,owner_user_id,route_code,origin,destination,distance_km,duration_minutes,vehicle_class,base_price_minor,currency,status',
+      'id,owner_user_id,route_code,origin,destination,distance_km,duration_minutes,vehicle_class,passenger_seating_capacity,base_price_minor,currency,status',
     )
     .eq('id', dep.route_id)
     .maybeSingle();
@@ -442,7 +460,7 @@ export async function fetchDepartureBookingPageData(
     ),
   );
 
-  const totalSeats = Math.max(1, Math.min(120, vehicleRow?.capacity ?? 50));
+  const totalSeats = effectivePassengerSeatCount(r.passenger_seating_capacity, vehicleRow?.capacity);
   const basePrice =
     typeof dep.price_override_minor === 'number' ? dep.price_override_minor : r.base_price_minor ?? 0;
 

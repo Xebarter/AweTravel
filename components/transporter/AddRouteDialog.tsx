@@ -48,7 +48,12 @@ import {
   type RouteStatus,
   type RouteStop,
 } from '@/types/transporter-route';
-import { VEHICLE_CLASS_OPTIONS, type Vehicle, type VehicleClass } from '@/types/transporter-vehicle';
+import {
+  DEFAULT_CAPACITY_BY_CLASS,
+  VEHICLE_CLASS_OPTIONS,
+  type Vehicle,
+  type VehicleClass,
+} from '@/types/transporter-vehicle';
 import { APP_CURRENCY_CODE } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 
@@ -77,6 +82,7 @@ type FormState = {
   distanceKm: string;
   durationMinutes: string;
   vehicleClass: VehicleClass;
+  passengerSeatingCapacity: string;
   basePrice: string;
   status: RouteStatus;
   notes: string;
@@ -107,6 +113,7 @@ const emptyForm = (): FormState => ({
   distanceKm: '',
   durationMinutes: '',
   vehicleClass: 'Bus',
+  passengerSeatingCapacity: String(DEFAULT_CAPACITY_BY_CLASS.Bus),
   basePrice: '',
   status: 'active',
   notes: '',
@@ -422,6 +429,11 @@ export function AddRouteDialog({
       return setSubmitError('Base price must be zero or greater.');
     }
 
+    const passengerSeatingCapacity = Number.parseInt(form.passengerSeatingCapacity, 10);
+    if (!Number.isFinite(passengerSeatingCapacity) || passengerSeatingCapacity < 1 || passengerSeatingCapacity > 120) {
+      return setSubmitError('Passenger seats must be a whole number from 1 to 120.');
+    }
+
     if (form.departures.length === 0) {
       return setSubmitError('Add at least one departure so the route can run.');
     }
@@ -475,6 +487,7 @@ export function AddRouteDialog({
       distanceKm,
       durationMinutes,
       vehicleClass: form.vehicleClass,
+      passengerSeatingCapacity,
       basePriceMinor: basePrice,
       currency: APP_CURRENCY_CODE,
       status: form.status,
@@ -565,7 +578,13 @@ export function AddRouteDialog({
                     <Select
                       value={form.vehicleClass}
                       onValueChange={(v) =>
-                        setForm((f) => ({ ...f, vehicleClass: v as VehicleClass }))
+                        setForm((f) => ({
+                          ...f,
+                          vehicleClass: v as VehicleClass,
+                          passengerSeatingCapacity: String(
+                            DEFAULT_CAPACITY_BY_CLASS[v as VehicleClass],
+                          ),
+                        }))
                       }
                     >
                       <SelectTrigger id={`${formId}-class`} className="w-full">
@@ -579,6 +598,25 @@ export function AddRouteDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`${formId}-passenger-seats`}>
+                      Passenger seats <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id={`${formId}-passenger-seats`}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={120}
+                      required
+                      value={form.passengerSeatingCapacity}
+                      onChange={setField('passengerSeatingCapacity')}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of seats shown on the passenger booking map. Cannot exceed a departure
+                      vehicle&apos;s capacity (we use the smaller of the two).
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor={`${formId}-status`}>Status</Label>

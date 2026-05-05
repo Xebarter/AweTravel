@@ -16,6 +16,7 @@ export type TransporterRouteRow = {
   distance_km: number | string;
   duration_minutes: number;
   vehicle_class: string;
+  passenger_seating_capacity: number;
   base_price_minor: number;
   currency: string;
   status: RouteStatus;
@@ -103,6 +104,7 @@ export function rowToRoute(row: TransporterRouteRowDeep): Route {
     distanceKm: toNumber(row.distance_km),
     durationMinutes: row.duration_minutes,
     vehicleClass: row.vehicle_class as VehicleClass,
+    passengerSeatingCapacity: Number(row.passenger_seating_capacity ?? 50),
     basePriceMinor: row.base_price_minor,
     currency: row.currency,
     status: row.status,
@@ -122,6 +124,7 @@ export type RouteInsert = {
   distance_km: number;
   duration_minutes: number;
   vehicle_class: string;
+  passenger_seating_capacity: number;
   base_price_minor: number;
   currency: string;
   status: RouteStatus;
@@ -137,6 +140,7 @@ export function routePayloadToInsert(
     distanceKm: number;
     durationMinutes: number;
     vehicleClass: string;
+    passengerSeatingCapacity: number;
     basePriceMinor: number;
     currency: string;
     status: RouteStatus;
@@ -151,6 +155,7 @@ export function routePayloadToInsert(
     distance_km: payload.distanceKm,
     duration_minutes: payload.durationMinutes,
     vehicle_class: payload.vehicleClass,
+    passenger_seating_capacity: payload.passengerSeatingCapacity,
     base_price_minor: payload.basePriceMinor,
     currency: payload.currency.trim().toUpperCase(),
     status: payload.status,
@@ -165,6 +170,7 @@ export function routePayloadToUpdate(payload: {
   distanceKm?: number;
   durationMinutes?: number;
   vehicleClass?: string;
+  passengerSeatingCapacity?: number;
   basePriceMinor?: number;
   currency?: string;
   status?: RouteStatus;
@@ -177,6 +183,9 @@ export function routePayloadToUpdate(payload: {
   if (payload.distanceKm !== undefined) out.distance_km = payload.distanceKm;
   if (payload.durationMinutes !== undefined) out.duration_minutes = payload.durationMinutes;
   if (payload.vehicleClass !== undefined) out.vehicle_class = payload.vehicleClass;
+  if (payload.passengerSeatingCapacity !== undefined) {
+    out.passenger_seating_capacity = payload.passengerSeatingCapacity;
+  }
   if (payload.basePriceMinor !== undefined) out.base_price_minor = payload.basePriceMinor;
   if (payload.currency !== undefined) out.currency = payload.currency.trim().toUpperCase();
   if (payload.status !== undefined) out.status = payload.status;
