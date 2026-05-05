@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { APP_CURRENCY_CODE } from '@/lib/currency';
 import type { UserProfile } from '@/lib/types';
+import { getTransporterProfile, updateTransporterOwnerProfile, upsertTransporterCompanyProfile } from '@/lib/transporter-profile/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -163,20 +164,11 @@ function TransporterProfilePageInner() {
     setCompanyLoading(true);
     setCompanyMessage(null);
     void (async () => {
-      const { data, error } = await supabase
-        .from('transporter_company_profiles')
-        .select('*')
-        .eq('owner_user_id', user.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-      if (error) {
-        setCompanyMessage({ type: 'err', text: error.message });
-        setCompanyLoading(false);
-        return;
-      }
-
-      if (data) {
+      try {
+        const res = await getTransporterProfile();
+        if (cancelled) return;
+        const data = res.company;
+        if (data) {
         setCompanyForm({
           company_name: data.company_name ?? '',
           trading_name: data.trading_name ?? '',
@@ -195,8 +187,14 @@ function TransporterProfilePageInner() {
           tax_id: data.tax_id ?? '',
           about: data.about ?? '',
         });
+        }
+        setCompanyLoading(false);
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setCompanyMessage({ type: 'err', text: e instanceof Error ? e.message : 'Failed to load company profile.' });
+          setCompanyLoading(false);
+        }
       }
-      setCompanyLoading(false);
     })();
 
     return () => {
@@ -228,22 +226,12 @@ function TransporterProfilePageInner() {
     setProfileMessage(null);
     setProfileSaving(true);
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          full_name: profileForm.full_name.trim(),
-          phone: profileForm.phone.trim() || null,
-          profile_image: profileForm.profile_image.trim() || null,
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-      const { data: refreshed, error: fetchErr } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (fetchErr) throw fetchErr;
+      const res = await updateTransporterOwnerProfile({
+        full_name: profileForm.full_name.trim(),
+        phone: profileForm.phone.trim() || null,
+        profile_image: profileForm.profile_image.trim() || null,
+      });
+      const refreshed = res.owner as UserProfile;
       setProfileForm({
         full_name: (refreshed as UserProfile).full_name ?? '',
         phone: (refreshed as UserProfile).phone ?? '',
@@ -267,7 +255,6 @@ function TransporterProfilePageInner() {
     setCompanySaving(true);
     try {
       const payload = {
-        owner_user_id: user.id,
         company_name: companyForm.company_name.trim(),
         trading_name: companyForm.trading_name.trim() || null,
         support_email: companyForm.support_email.trim().toLowerCase() || null,
@@ -291,10 +278,7 @@ function TransporterProfilePageInner() {
         return;
       }
 
-      const { error } = await supabase.from('transporter_company_profiles').upsert(payload, {
-        onConflict: 'owner_user_id',
-      });
-      if (error) throw error;
+      await upsertTransporterCompanyProfile(payload);
       setCompanyMessage({ type: 'ok', text: 'Company profile saved.' });
     } catch (err) {
       setCompanyMessage({ type: 'err', text: err instanceof Error ? err.message : 'Could not save company profile.' });

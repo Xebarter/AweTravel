@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,18 @@ export default function BookingsPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'completed' | 'pending'>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // Deep-link from /transporter/earnings (?q=BOOKING_CODE) — seed search once on mount.
+  const search = useSearchParams();
+  const seededFromQueryRef = useRef(false);
+  useEffect(() => {
+    if (seededFromQueryRef.current) return;
+    const q = search?.get('q');
+    if (q && q.trim()) {
+      setSearchTerm(q.trim());
+      seededFromQueryRef.current = true;
+    }
+  }, [search]);
 
   const reload = useCallback(async () => {
     setLoading(true);

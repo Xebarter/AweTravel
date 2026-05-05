@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { getHomePathForProfile } from '@/lib/post-auth-redirect';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   const onLogin = pathname === '/login';
   const onSignup = pathname === '/signup';
@@ -28,7 +29,7 @@ export function SiteHeader() {
           {isLoading ? (
             <div className="h-9 w-24 animate-pulse rounded-md bg-muted" aria-hidden />
           ) : user ? (
-            <Button type="button" onClick={() => router.push('/dashboard')}>
+            <Button type="button" onClick={() => router.push(getHomePathForProfile(profile))}>
               Dashboard
             </Button>
           ) : (

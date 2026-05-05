@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { getHomePathForProfile } from '@/lib/post-auth-redirect';
 import { Button } from '@/components/ui/button';
 import { SiteFooter } from '@/components/site/SiteFooter';
 import { HomeAdBanner } from '@/components/site/HomeAdBanner';
@@ -12,13 +13,13 @@ import { MapPin, Users, TrendingUp, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   useEffect(() => {
     if (user && router.prefetch) {
-      router.prefetch('/dashboard');
+      router.prefetch(getHomePathForProfile(profile));
     }
-  }, [user, router]);
+  }, [user, profile, router]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,7 +54,7 @@ export default function HomePage() {
                 <Button
                   size="lg"
                   className="bg-accent hover:bg-accent-dark"
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push(getHomePathForProfile(profile))}
                 >
                   Go to Dashboard
                 </Button>

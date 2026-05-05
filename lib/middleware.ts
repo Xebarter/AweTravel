@@ -108,7 +108,7 @@ async function resolveRoleRow(supabase: SupabaseClient, user: User): Promise<Rol
 }
 
 /** App areas that require a signed-in user (role checks apply where listed). */
-const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/passenger', '/transporter', '/admin'] as const;
+const AUTH_REQUIRED_PREFIXES = ['/passenger', '/transporter', '/admin'] as const;
 
 function requiresAuth(pathname: string): boolean {
   return AUTH_REQUIRED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -172,7 +172,7 @@ export async function middleware(request: NextRequest) {
 
   const row = await resolveRoleRow(supabase, user);
   if (!row) {
-    const redirect = NextResponse.redirect(new URL('/dashboard', request.url));
+    const redirect = NextResponse.redirect(new URL('/', request.url));
     copyCookies(supabaseResponse, redirect);
     return redirect;
   }
@@ -191,7 +191,13 @@ export async function middleware(request: NextRequest) {
   const matched = rolePrefixes.find((r) => pathname.startsWith(r.prefix));
   if (matched) {
     if (row.user_type !== matched.allowed) {
-      const redirect = NextResponse.redirect(new URL('/dashboard', request.url));
+      const target =
+        row.user_type === 'admin'
+          ? '/admin'
+          : row.user_type === 'transporter'
+            ? '/transporter'
+            : '/passenger/dashboard';
+      const redirect = NextResponse.redirect(new URL(target, request.url));
       copyCookies(supabaseResponse, redirect);
       return redirect;
     }

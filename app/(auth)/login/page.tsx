@@ -42,8 +42,8 @@ function LoginForm() {
         await router.push(path);
         router.refresh();
       } else {
-        router.prefetch('/dashboard');
-        await router.push('/dashboard');
+        router.prefetch('/');
+        await router.push('/');
         router.refresh();
       }
     } catch (err) {

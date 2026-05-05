@@ -6,8 +6,6 @@ export { middleware } from '@/lib/middleware';
  */
 export const config = {
   matcher: [
-    '/dashboard',
-    '/dashboard/:path*',
     '/passenger',
     '/passenger/:path*',
     '/transporter',

@@ -8,6 +8,7 @@ import { NotificationCenter } from './NotificationCenter';
 import { LogOut, Settings, User, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { getHomePathForProfile } from '@/lib/post-auth-redirect';
 
 function isPassengerNavActive(href: string, pathname: string): boolean {
   if (href === '/passenger/dashboard') {
@@ -58,8 +59,7 @@ export function Header() {
   }, [showProfileMenu]);
 
   const getDashboardUrl = () => {
-    if (!profile) return '/';
-    return '/dashboard';
+    return getHomePathForProfile(profile);
   };
 
   const getNavLinks = () => {

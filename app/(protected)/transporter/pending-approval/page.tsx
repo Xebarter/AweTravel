@@ -43,7 +43,7 @@ export default function TransporterPendingApprovalPage() {
       return;
     }
     if (profile && profile.user_type !== 'transporter') {
-      router.replace('/dashboard');
+      router.replace('/');
     } else if (profile && isTransporterApproved(profile)) {
       router.replace('/transporter');
     }
