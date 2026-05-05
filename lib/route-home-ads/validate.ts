@@ -32,7 +32,8 @@ export const routeHomeAdApplicationCreateSchema = z.object({
   headline: z.string().trim().min(1).max(160),
   subheadline: z.string().trim().max(240).optional().nullable(),
   ctaLabel: z.string().trim().min(1).max(64),
-  targetUrl: httpsUrl,
+  // Transporter UI no longer asks for targetUrl; server may auto-generate it.
+  targetUrl: httpsUrl.optional().default('https://example.com'),
   imageUrl: httpsUrl,
   status: applicationStatusSchema.default('pending_review'),
 });

@@ -113,6 +113,8 @@ export async function GET(request: NextRequest) {
         amount_minor,
         currency,
         created_at,
+        guest_full_name,
+        guest_email,
         passenger:users!bookings_passenger_user_id_fkey(full_name,email),
         route:transporter_routes!inner(owner_user_id,route_code,origin,destination)
       `,
@@ -132,7 +134,8 @@ export async function GET(request: NextRequest) {
     travelDate: row.travel_date,
     routeCode: row.route?.route_code ?? '',
     routeLabel: row.route ? `${row.route.origin} → ${row.route.destination}` : '',
-    passengerName: row.passenger?.full_name ?? row.passenger?.email ?? null,
+    passengerName:
+      row.passenger?.full_name ?? row.passenger?.email ?? row.guest_full_name ?? row.guest_email ?? null,
     seatCode: row.seat_code,
     status: row.status,
     paymentStatus: row.payment_status,

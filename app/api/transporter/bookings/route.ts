@@ -32,6 +32,9 @@ const SELECT = `
   id,
   booking_code,
   passenger_user_id,
+  guest_full_name,
+  guest_email,
+  guest_phone,
   route_id,
   departure_id,
   travel_date,
@@ -56,8 +59,8 @@ function rowToBooking(row: any): Booking {
     id: row.id,
     bookingCode: row.booking_code,
     passengerUserId: row.passenger_user_id,
-    passengerName: row.passenger?.full_name ?? null,
-    passengerEmail: row.passenger?.email ?? null,
+    passengerName: row.passenger?.full_name ?? row.guest_full_name ?? null,
+    passengerEmail: row.passenger?.email ?? row.guest_email ?? null,
     routeId: row.route_id,
     routeCode,
     routeLabel: origin && destination ? `${origin} → ${destination}` : routeCode,
@@ -105,7 +108,7 @@ export async function GET(request: NextRequest) {
   if (q) {
     const pat = `%${q.replace(/%/g, '').slice(0, 64)}%`;
     query = query.or(
-      `booking_code.ilike.${pat},seat_code.ilike.${pat},passenger.email.ilike.${pat},passenger.full_name.ilike.${pat},route.route_code.ilike.${pat}`,
+      `booking_code.ilike.${pat},seat_code.ilike.${pat},passenger.email.ilike.${pat},passenger.full_name.ilike.${pat},guest_email.ilike.${pat},guest_full_name.ilike.${pat},route.route_code.ilike.${pat}`,
     );
   }
 

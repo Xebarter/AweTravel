@@ -4,7 +4,7 @@ export type BookingPaymentStatus = 'pending' | 'completed' | 'failed' | 'cancell
 export type Booking = {
   id: string;
   bookingCode: string;
-  passengerUserId: string;
+  passengerUserId: string | null;
   passengerName: string | null;
   passengerEmail: string | null;
   routeId: string;

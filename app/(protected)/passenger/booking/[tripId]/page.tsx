@@ -6,11 +6,14 @@ import { useAuth } from '@/lib/auth-context';
 import { SeatSelector } from '@/components/passenger/SeatSelector';
 import { BookingSummary } from '@/components/passenger/BookingSummary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/currency';
 import { Seat, AvailableRoute } from '@/lib/types';
 import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
 import { fetchPublicPlatformSettings, platformFeeFromBps } from '@/lib/platform-settings/public-client';
 import { AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 // Mock data - in production, fetch from API
 const mockRoute: AvailableRoute = {
@@ -83,6 +86,8 @@ export default function BookingPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [platformFeeBps, setPlatformFeeBps] = useState(DEFAULT_PLATFORM_FEE_BPS);
+  const [guestFullName, setGuestFullName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
 
   const route = mockRoute; // In production, fetch based on tripId
 
@@ -102,25 +107,8 @@ export default function BookingPage({
     router.prefetch(`/passenger/payment?tripId=${params.tripId}&seatId=${selectedSeat.id}`);
   }, [selectedSeat, params.tripId, router]);
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md border-border">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="h-6 w-6 text-destructive mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-foreground">Not Authenticated</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Please sign in to continue with your booking.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const displayName = profile?.full_name?.trim() || guestFullName.trim();
+  const displayEmail = profile?.email?.trim() || guestEmail.trim();
 
   const handleSeatSelect = (seat: Seat) => {
     setSelectedSeat(seat);
@@ -132,6 +120,7 @@ export default function BookingPage({
       setError('Please select a seat');
       return;
     }
+    setError('');
     setStep('summary');
   };
 
@@ -139,6 +128,17 @@ export default function BookingPage({
     if (!selectedSeat) {
       setError('Please select a seat');
       return;
+    }
+
+    if (!profile) {
+      if (!guestFullName.trim()) {
+        setError('Please enter your full name');
+        return;
+      }
+      if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+        setError('Please enter a valid email address');
+        return;
+      }
     }
 
     setLoading(true);
@@ -165,6 +165,15 @@ export default function BookingPage({
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Booking</h1>
+          {!profile ? (
+            <p className="mb-4 text-sm text-muted-foreground">
+              Booking as a guest — no account needed.{' '}
+              <Link href="/login" className="font-medium text-accent underline-offset-4 hover:underline">
+                Sign in
+              </Link>{' '}
+              to keep trips in one place.
+            </p>
+          ) : null}
           <div className="flex items-center gap-4">
             <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
               step === 'seat' || step === 'summary' || step === 'payment'
@@ -248,15 +257,50 @@ export default function BookingPage({
             )}
 
             {step === 'summary' && selectedSeat && (
-              <BookingSummary
-                route={route}
-                selectedSeat={selectedSeat}
-                passengerName={profile.full_name}
-                passengerEmail={profile.email}
-                platformFeeBps={platformFeeBps}
-                onConfirm={handleConfirmBooking}
-                isLoading={loading}
-              />
+              <div className="space-y-6">
+                {!profile ? (
+                  <Card className="border-border">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Your details</CardTitle>
+                      <CardDescription>We&apos;ll use this for your ticket and payment confirmation.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-full-name">Full name</Label>
+                        <Input
+                          id="guest-full-name"
+                          name="guestFullName"
+                          autoComplete="name"
+                          value={guestFullName}
+                          onChange={(e) => setGuestFullName(e.target.value)}
+                          placeholder="As on your ID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-email">Email</Label>
+                        <Input
+                          id="guest-email"
+                          name="guestEmail"
+                          type="email"
+                          autoComplete="email"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+                <BookingSummary
+                  route={route}
+                  selectedSeat={selectedSeat}
+                  passengerName={displayName || '—'}
+                  passengerEmail={displayEmail || '—'}
+                  platformFeeBps={platformFeeBps}
+                  onConfirm={handleConfirmBooking}
+                  isLoading={loading}
+                />
+              </div>
             )}
           </div>
 

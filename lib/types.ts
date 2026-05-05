@@ -193,3 +193,6 @@ export interface AvailableRoute {
   total_seats: number;
   booked_seats: number;
 }
+
+/** Same shape as discover / passenger search trip rows. */
+export type TripSearchResult = AvailableRoute;

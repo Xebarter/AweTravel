@@ -237,102 +237,102 @@ function SearchContent() {
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="space-y-6">
-            <div className="sticky top-0 z-20 -mx-4 mb-6 rounded-none border-b border-border/70 bg-background/85 px-4 py-4 shadow-xs backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:bg-card/60 sm:px-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  {!loading ? (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{sortedResults.length}</span>{' '}
-                      {sortedResults.length === 1 ? 'trip' : 'trips'} found
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Searching trips…</p>
-                  )}
-                </div>
+          <div className="sticky top-0 z-20 -mx-4 mb-6 rounded-none border-b border-border/70 bg-background/85 px-4 py-4 shadow-xs backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:bg-card/60 sm:px-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {!loading ? (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{sortedResults.length}</span>{' '}
+                    {sortedResults.length === 1 ? 'trip' : 'trips'} found
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Searching trips…</p>
+                )}
+              </div>
 
-                <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
-                  <Select value={companyId} onValueChange={setCompanyId} disabled={!hasSearchCriteria || loading}>
-                    <SelectTrigger size="sm" className="w-full sm:min-w-[220px] sm:w-auto">
-                      <SelectValue placeholder="Travel company">
-                        {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All companies</SelectItem>
-                      {companyOptions.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-                    <SelectTrigger size="sm" className="w-full sm:min-w-[200px] sm:w-auto">
-                      <SelectValue placeholder="Sort by">{sortLabel}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SORT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {hasSearchCriteria ? (
-                    <Badge variant="outline" className="hidden sm:inline-flex gap-1.5 font-normal">
-                      <Filter className="size-3.5 text-muted-foreground" aria-hidden />
-                      {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name ?? 'Company'}
-                    </Badge>
-                  ) : null}
-                </div>
+              <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <Select value={companyId} onValueChange={setCompanyId} disabled={!hasSearchCriteria || loading}>
+                  <SelectTrigger size="sm" className="w-full sm:min-w-[220px] sm:w-auto">
+                    <SelectValue placeholder="Travel company">
+                      {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All companies</SelectItem>
+                    {companyOptions.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+                  <SelectTrigger size="sm" className="w-full sm:min-w-[200px] sm:w-auto">
+                    <SelectValue placeholder="Sort by">{sortLabel}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {hasSearchCriteria ? (
+                  <Badge variant="outline" className="hidden sm:inline-flex gap-1.5 font-normal">
+                    <Filter className="size-3.5 text-muted-foreground" aria-hidden />
+                    {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name ?? 'Company'}
+                  </Badge>
+                ) : null}
               </div>
             </div>
+          </div>
 
-            {loading ? (
-              <ResultsSkeleton />
-            ) : !hasSearchCriteria ? (
-              <Card className="border-border/80 border-dashed">
-                <CardContent className="flex flex-col items-center px-6 py-14 text-center sm:py-16">
-                  <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                    <MapPin className="size-7" aria-hidden />
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground">Start with a quick search</h2>
-                  <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                    Enter your origin, destination, and date above. We’ll show the best departures and prices for your day.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : sortedResults.length === 0 ? (
-              <Card className="border-border/80 border-dashed">
-                <CardContent className="flex flex-col items-center px-6 py-14 text-center sm:py-16">
-                  <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                    <Bus className="size-7" aria-hidden />
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground">No trips match this search</h2>
-                  <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                    Try a different date, or select a different travel company.
-                  </p>
-                  <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    {companyId !== 'all' ? (
-                      <Button type="button" variant="outline" className="font-semibold" onClick={() => setCompanyId('all')}>
-                        Clear company filter
-                      </Button>
-                    ) : null}
-                    <Button asChild variant="default" className="font-semibold shadow-sm">
-                      <Link href="/passenger/dashboard">Back to dashboard</Link>
+          {loading ? (
+            <ResultsSkeleton />
+          ) : !hasSearchCriteria ? (
+            <Card className="border-border/80 border-dashed">
+              <CardContent className="flex flex-col items-center px-6 py-14 text-center sm:py-16">
+                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                  <MapPin className="size-7" aria-hidden />
+                </div>
+                <h2 className="text-lg font-semibold text-foreground">Start with a quick search</h2>
+                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                  Enter your origin, destination, and date above. We’ll show the best departures and prices for your day.
+                </p>
+              </CardContent>
+            </Card>
+          ) : sortedResults.length === 0 ? (
+            <Card className="border-border/80 border-dashed">
+              <CardContent className="flex flex-col items-center px-6 py-14 text-center sm:py-16">
+                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                  <Bus className="size-7" aria-hidden />
+                </div>
+                <h2 className="text-lg font-semibold text-foreground">No trips match this search</h2>
+                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                  Try a different date, or select a different travel company.
+                </p>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                  {companyId !== 'all' ? (
+                    <Button type="button" variant="outline" className="font-semibold" onClick={() => setCompanyId('all')}>
+                      Clear company filter
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <ul className="space-y-4" aria-label="Available trips">
-                {sortedResults.map((route) => (
-                  <li key={route.trip_id}>
-                    <RouteCard route={route} />
-                  </li>
-                ))}
-              </ul>
-            )}
+                  ) : null}
+                  <Button asChild variant="default" className="font-semibold shadow-sm">
+                    <Link href="/passenger/dashboard">Back to dashboard</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <ul className="space-y-4" aria-label="Available trips">
+              {sortedResults.map((route) => (
+                <li key={route.trip_id}>
+                  <RouteCard route={route} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

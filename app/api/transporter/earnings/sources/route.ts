@@ -32,6 +32,8 @@ const SELECT = [
   'created_at',
   'route_id',
   'departure_id',
+  'guest_full_name',
+  'guest_email',
   'passenger:users!bookings_passenger_user_id_fkey(id,full_name,email)',
   'route:transporter_routes!inner(id,owner_user_id,route_code,origin,destination)',
   'departure:transporter_route_departures(id,departure_time,vehicle:transporter_vehicles(id,registration))',
@@ -245,7 +247,13 @@ export async function GET(req: Request) {
               name: passenger.full_name ?? null,
               email: passenger.email ?? null,
             }
-          : null,
+          : (row.guest_full_name as string | undefined) || (row.guest_email as string | undefined)
+            ? {
+                id: '',
+                name: (row.guest_full_name as string | null | undefined) ?? null,
+                email: (row.guest_email as string | null | undefined) ?? null,
+              }
+            : null,
         route: route
           ? {
               id: route.id,

@@ -7,7 +7,7 @@ import type { PassengerBookingListItem } from '@/lib/types';
 type BookingRow = {
   id: string;
   booking_code: string;
-  passenger_user_id: string;
+  passenger_user_id: string | null;
   route_id: string;
   departure_id: string | null;
   travel_date: string;
@@ -65,6 +65,9 @@ const createSchema = z.object({
   departureId: z.string().uuid().optional().nullable(),
   travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   seatCode: z.string().min(1).max(16),
+  guestFullName: z.string().trim().min(1).max(200).optional(),
+  guestEmail: z.string().trim().email().optional(),
+  guestPhone: z.string().trim().max(32).optional().nullable(),
 });
 
 const patchSchema = z.object({
@@ -199,7 +202,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/bookings
- * Create a new booking for the signed-in passenger (RLS-protected insert).
+ * Create a booking: signed-in passengers use RLS; guests use service role with contact details.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
@@ -209,7 +212,7 @@ export async function POST(request: NextRequest) {
     data: { user },
     error: authErr,
   } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  if (authErr) return jsonError('Unauthorized', 401);
 
   let body: unknown;
   try {
@@ -221,10 +224,16 @@ export async function POST(request: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? 'Invalid payload', 400);
 
-  const { routeId, departureId, travelDate, seatCode } = parsed.data;
+  const { routeId, departureId, travelDate, seatCode, guestFullName, guestEmail, guestPhone } = parsed.data;
 
   const admin = createSupabaseAdminClient();
   if (!admin) return jsonError('Server misconfigured', 500);
+
+  if (!user) {
+    if (!guestFullName || !guestEmail) {
+      return jsonError('Guest bookings require full name and email', 400);
+    }
+  }
 
   const { data: route, error: routeErr } = await admin
     .from('transporter_routes')
@@ -254,20 +263,39 @@ export async function POST(request: NextRequest) {
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const bookingCode = `AWE-${year}-${String(Math.floor(Math.random() * 9_999_999)).padStart(7, '0')}`;
-    const { data, error } = await supabase
+    const insertRow = !user
+      ? {
+          booking_code: bookingCode,
+          passenger_user_id: null as string | null,
+          guest_full_name: guestFullName!,
+          guest_email: guestEmail!,
+          guest_phone: guestPhone?.trim() ? guestPhone.trim() : null,
+          route_id: routeId,
+          departure_id: departureId ?? null,
+          travel_date: travelDate,
+          seat_code: seatCode,
+          status: 'pending',
+          amount_minor: amountMinor,
+          currency,
+          payment_status: 'pending',
+        }
+      : {
+          booking_code: bookingCode,
+          passenger_user_id: user.id,
+          route_id: routeId,
+          departure_id: departureId ?? null,
+          travel_date: travelDate,
+          seat_code: seatCode,
+          status: 'pending',
+          amount_minor: amountMinor,
+          currency,
+          payment_status: 'pending',
+        };
+
+    const client = !user ? admin : supabase;
+    const { data, error } = await client
       .from('bookings')
-      .insert({
-        booking_code: bookingCode,
-        passenger_user_id: user.id,
-        route_id: routeId,
-        departure_id: departureId ?? null,
-        travel_date: travelDate,
-        seat_code: seatCode,
-        status: 'pending',
-        amount_minor: amountMinor,
-        currency,
-        payment_status: 'pending',
-      })
+      .insert(insertRow)
       .select(
         'id,booking_code,route_id,departure_id,travel_date,seat_code,status,amount_minor,currency,payment_status,created_at',
       )

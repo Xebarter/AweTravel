@@ -132,9 +132,9 @@ function PaymentContent() {
           <div className="space-y-2">
             <div>
               <Button variant="ghost" size="sm" className="-ml-2 px-2 text-muted-foreground hover:text-foreground" asChild>
-                <Link href="/passenger/bookings">
+                <Link href={profile ? '/passenger/bookings' : '/'}>
                   <ChevronLeft className="size-4" aria-hidden />
-                  Back to bookings
+                  {profile ? 'Back to bookings' : 'Back to home'}
                 </Link>
               </Button>
             </div>
@@ -348,7 +348,7 @@ function PaymentContent() {
                   <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
                     A confirmation email will be sent to{' '}
                     <span className={cn('font-medium text-foreground', !profile?.email && 'text-muted-foreground')}>
-                      {profile?.email ?? 'your account email'}
+                      {profile?.email ?? 'the email you used when booking'}
                     </span>
                     .
                   </div>

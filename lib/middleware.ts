@@ -114,6 +114,15 @@ function requiresAuth(pathname: string): boolean {
   return AUTH_REQUIRED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+/** Passenger checkout pages reachable without an account (booking → pay → confirmation). */
+function isPassengerGuestCheckoutPath(pathname: string): boolean {
+  if (pathname === '/passenger/booking' || pathname.startsWith('/passenger/booking/')) return true;
+  if (pathname === '/passenger/payment' || pathname.startsWith('/passenger/payment/')) return true;
+  if (pathname === '/passenger/booking-confirmation' || pathname.startsWith('/passenger/booking-confirmation/'))
+    return true;
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -161,6 +170,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!requiresAuth(pathname)) {
+    return supabaseResponse;
+  }
+
+  if (!user && isPassengerGuestCheckoutPath(pathname)) {
     return supabaseResponse;
   }
 
