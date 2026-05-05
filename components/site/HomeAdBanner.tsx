@@ -1,14 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { HomeBanner } from '@/types/route-home-ad';
+import { resolveBannerCta, todayIsoDate } from '@/lib/home-banners/cta';
 import { cn } from '@/lib/utils';
 
 export function HomeAdBanner() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [currentOrigin, setCurrentOrigin] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentOrigin(window.location.origin);
+  }, []);
+
   const [banners, setBanners] = useState<HomeBanner[]>([]);
   const [index, setIndex] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -70,7 +80,39 @@ export function HomeAdBanner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, n, goPrev, goNext]);
 
-  const isExternal = current ? /^https?:\/\//i.test(current.linkUrl) : false;
+  const resolvedCta = useMemo(() => {
+    if (!current) return { kind: 'external' as const, href: '#' };
+    return resolveBannerCta(current.linkUrl, { currentOrigin });
+  }, [current, currentOrigin]);
+
+  const onInternalCtaClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
+      if (resolvedCta.kind !== 'internal') return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.button !== 0) return;
+      if (pathname !== '/') return;
+
+      const href = resolvedCta.href;
+      if (!href.startsWith('/passenger/search')) return;
+
+      e.preventDefault();
+      try {
+        const u = new URL(href, window.location.origin);
+        const from = u.searchParams.get('from') ?? '';
+        const to = u.searchParams.get('to') ?? '';
+        const date = u.searchParams.get('date') ?? todayIsoDate();
+        const q = new URLSearchParams({ from, to, date }).toString();
+        void router.replace(`/?${q}`, { scroll: false });
+        requestAnimationFrame(() => {
+          document.getElementById('book')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } catch {
+        void router.push(href);
+      }
+    },
+    [pathname, resolvedCta, router],
+  );
+
   const ctaClass =
     'inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-foreground shadow-sm transition-colors hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
   const liveMessage = n > 0 ? `Promotion ${index + 1} of ${n}` : '';
@@ -240,9 +282,9 @@ export function HomeAdBanner() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2.5">
-              {isExternal ? (
+              {resolvedCta.kind === 'external' ? (
                 <a
-                  href={current.linkUrl}
+                  href={resolvedCta.href}
                   className={ctaClass}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -250,7 +292,7 @@ export function HomeAdBanner() {
                   {current.ctaLabel}
                 </a>
               ) : (
-                <Link href={current.linkUrl} className={ctaClass}>
+                <Link href={resolvedCta.href} className={ctaClass} onClick={onInternalCtaClick}>
                   {current.ctaLabel}
                 </Link>
               )}
