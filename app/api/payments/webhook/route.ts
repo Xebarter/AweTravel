@@ -83,6 +83,59 @@ async function persistLedgerRow(params: {
   }
 }
 
+async function notifyAdminsPaymentEvent(params: {
+  reference: string;
+  event: string;
+  amountUgx: number;
+  customerEmail?: string;
+}) {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+
+  const { data: admins, error } = await admin.from('users').select('id').eq('user_type', 'admin');
+  if (error || !admins || admins.length === 0) return;
+
+  const title = params.event === 'payment.success' ? 'Payment received' : 'Payment update';
+  const amount = formatUgx(params.amountUgx);
+  const email = params.customerEmail?.trim() ? params.customerEmail.trim() : 'Unknown customer';
+
+  const message =
+    params.event === 'payment.success'
+      ? `${amount} received for reference ${params.reference} (${email}).`
+      : `${params.event} for reference ${params.reference} (${email}).`;
+
+  const rows = admins.map((a) => ({
+    recipient_id: a.id,
+    actor_id: null,
+    title,
+    message,
+    type: params.event === 'payment.success' ? 'success' : 'info',
+    category: 'payments',
+    data: {
+      reference: params.reference,
+      event: params.event,
+      amount_ugx: params.amountUgx,
+      customer_email: params.customerEmail ?? null,
+      href: '/admin/transactions',
+    },
+  }));
+
+  const { error: insErr } = await admin.from('notifications').insert(rows);
+  if (insErr) {
+    console.error('[Payment Webhook] notifications insert failed:', insErr);
+  }
+}
+
+function formatUgx(amountUgx: number): string {
+  try {
+    return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', maximumFractionDigits: 0 }).format(
+      amountUgx,
+    );
+  } catch {
+    return `UGX ${amountUgx}`;
+  }
+}
+
 /**
  * POST /api/payments/webhook
  * Handle Paytota payment notifications
@@ -122,6 +175,14 @@ export async function POST(request: NextRequest) {
           customerEmail: customer_email,
           timestamp: typeof timestamp === 'string' ? timestamp : undefined,
           rawStatus: status,
+        });
+
+        // Minimal producer: push admin notifications for payment events.
+        await notifyAdminsPaymentEvent({
+          reference: ref.trim(),
+          event: String(event),
+          amountUgx,
+          customerEmail: typeof customer_email === 'string' ? customer_email : undefined,
         });
       } else {
         console.warn('[Payment Webhook] skipping ledger write: invalid or missing amount', {

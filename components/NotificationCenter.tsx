@@ -1,66 +1,126 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell, X, Check } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Bell, X, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
-import { Card } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
+import {
+  dismissNotification,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/lib/notifications/client';
+import type { NotificationRow, NotificationType } from '@/lib/notifications/types';
 
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'success' | 'warning' | 'error' | 'info';
-  read: boolean;
-  timestamp: Date;
+function toUi(n: NotificationRow) {
+  return {
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    type: n.type as NotificationType,
+    read: Boolean(n.read_at),
+    dismissed: Boolean(n.dismissed_at),
+    createdAt: new Date(n.created_at),
+    data: n.data ?? {},
+  };
 }
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Booking Confirmed',
-      message: 'Your booking for Lagos-Ibadan route is confirmed',
-      type: 'success',
-      read: false,
-      timestamp: new Date(Date.now() - 5 * 60000),
-    },
-    {
-      id: '2',
-      title: 'Payment Received',
-      message: `${formatCurrency(5250)} payment received for booking AWE-2024-0001234`,
-      type: 'success',
-      read: false,
-      timestamp: new Date(Date.now() - 15 * 60000),
-    },
-    {
-      id: '3',
-      title: 'Route Update',
-      message: 'Schedule updated for Lagos-Ibadan route',
-      type: 'info',
-      read: true,
-      timestamp: new Date(Date.now() - 1 * 3600000),
-    },
-  ]);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<ReturnType<typeof toUi>[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isMutating, setIsMutating] = useState(false);
 
   const [showDropdown, setShowDropdown] = useState(false);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read && !n.dismissed).length, [notifications]);
+
+  async function refresh() {
+    if (!user) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const res = await listNotifications({ limit: 25 });
+      setNotifications(res.items.map(toUi));
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load notifications');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` },
+        () => {
+          void refresh();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleMarkAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+    if (isMutating) return;
+    setIsMutating(true);
+    void (async () => {
+      try {
+        await markNotificationRead(id);
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      } finally {
+        setIsMutating(false);
+      }
+    })();
   };
 
   const handleDismiss = (id: string) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+    if (isMutating) return;
+    setIsMutating(true);
+    void (async () => {
+      try {
+        await dismissNotification(id);
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      } finally {
+        setIsMutating(false);
+      }
+    })();
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+    if (isMutating) return;
+    setIsMutating(true);
+    void (async () => {
+      try {
+        await markAllNotificationsRead();
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      } finally {
+        setIsMutating(false);
+      }
+    })();
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
+  const getNotificationColor = (type: NotificationType) => {
     switch (type) {
       case 'success':
         return 'bg-success/10 border-success/20';
@@ -73,7 +133,7 @@ export function NotificationCenter() {
     }
   };
 
-  const getNotificationIcon = (type: Notification['type']) => {
+  const getNotificationIcon = (type: NotificationType) => {
     switch (type) {
       case 'success':
         return 'text-success';
@@ -103,7 +163,10 @@ export function NotificationCenter() {
     <div className="relative">
       {/* Bell Icon Button */}
       <button
-        onClick={() => setShowDropdown(!showDropdown)}
+        onClick={() => {
+          setShowDropdown(!showDropdown);
+          if (!showDropdown) void refresh();
+        }}
         className="relative p-2 hover:bg-secondary rounded-lg transition"
       >
         <Bell className="h-6 w-6" />
@@ -127,6 +190,7 @@ export function NotificationCenter() {
                   size="sm"
                   onClick={handleMarkAllAsRead}
                   className="text-xs h-8"
+                  disabled={isMutating}
                 >
                   Mark all as read
                 </Button>
@@ -144,7 +208,19 @@ export function NotificationCenter() {
 
           {/* Notification List */}
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length > 0 ? (
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" aria-hidden />
+                <p className="text-sm">Loading notifications…</p>
+              </div>
+            ) : loadError ? (
+              <div className="p-6 text-center">
+                <p className="text-sm text-destructive">{loadError}</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => void refresh()}>
+                  Try again
+                </Button>
+              </div>
+            ) : notifications.length > 0 ? (
               <div className="space-y-2 p-3">
                 {notifications.map((notification) => (
                   <div
@@ -162,7 +238,7 @@ export function NotificationCenter() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">{notification.message}</p>
-                        <p className="text-xs text-muted-foreground">{formatTime(notification.timestamp)}</p>
+                        <p className="text-xs text-muted-foreground">{formatTime(notification.createdAt)}</p>
                       </div>
                       <div className="flex gap-1">
                         {!notification.read && (
@@ -171,6 +247,7 @@ export function NotificationCenter() {
                             size="sm"
                             onClick={() => handleMarkAsRead(notification.id)}
                             className="h-7 w-7 p-0"
+                            disabled={isMutating}
                           >
                             <Check className="h-4 w-4 text-success" />
                           </Button>
@@ -180,6 +257,7 @@ export function NotificationCenter() {
                           size="sm"
                           onClick={() => handleDismiss(notification.id)}
                           className="h-7 w-7 p-0"
+                          disabled={isMutating}
                         >
                           <X className="h-3 w-3" />
                         </Button>
@@ -198,8 +276,8 @@ export function NotificationCenter() {
           {/* Footer */}
           {notifications.length > 0 && (
             <div className="p-3 border-t border-border">
-              <Button variant="outline" size="sm" className="w-full">
-                View All Notifications
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link href="/notifications">View All Notifications</Link>
               </Button>
             </div>
           )}

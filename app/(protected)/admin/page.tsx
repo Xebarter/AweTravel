@@ -153,29 +153,29 @@ export default function AdminDashboard() {
         ) : null}
 
         {/* KPI strip */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Users className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Users className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Passengers
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-20" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-16" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report?.users.totalPassengers.toLocaleString() ?? '—'}
                     </p>
                   )}
                   <div className="mt-1">
                     {isLoading ? (
-                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="mx-auto h-4 w-20" />
                     ) : report?.comparison ? (
                       <DeltaPill metric={report.comparison.newUsersTotal} />
                     ) : (
@@ -190,21 +190,21 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground">
-                    <Bus className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
+                    <Bus className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Transporters pending
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-16" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-14" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report?.transporters.pendingApproval.toLocaleString() ?? '—'}
                     </p>
                   )}
@@ -215,21 +215,21 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-700 dark:text-sky-300">
-                    <MapPin className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                    <MapPin className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Routes active
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-16" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-14" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report?.operations.routesActive.toLocaleString() ?? '—'}
                     </p>
                   )}
@@ -242,21 +242,21 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300">
-                    <Truck className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                    <Truck className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Vehicles total
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-16" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-14" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report?.operations.vehiclesTotal.toLocaleString() ?? '—'}
                     </p>
                   )}
@@ -269,21 +269,21 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                    <TrendingUp className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                    <TrendingUp className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Net (UGX)
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-24" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-20" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report ? formatCurrency(report.finance.totals.netUgx) : '—'}
                     </p>
                   )}
@@ -294,21 +294,21 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="border-border/80 shadow-sm">
-            <CardContent className="p-4">
-              <div className="space-y-2">
+            <CardContent className="p-2.5">
+              <div className="space-y-1 text-center">
                 <div className="flex justify-center">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300">
-                    <CreditCard className="size-4" aria-hidden />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300">
+                    <CreditCard className="size-3.5" aria-hidden />
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase leading-snug tracking-wider text-muted-foreground">
                     Pending payouts
                   </p>
                   {isLoading ? (
-                    <Skeleton className="mt-1 h-7 w-24" />
+                    <Skeleton className="mx-auto mt-1 h-6 w-20" />
                   ) : (
-                    <p className="mt-1 whitespace-nowrap text-xl font-semibold tabular-nums text-foreground sm:text-2xl">
+                    <p className="mt-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
                       {report ? formatCurrency(report.finance.totals.pendingOutgoingUgx) : '—'}
                     </p>
                   )}
@@ -356,14 +356,14 @@ export default function AdminDashboard() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-auto justify-start gap-2.5 border-border/80 p-3.5 text-left">
-                <Link href="/admin/companies" className="flex w-full items-start gap-3">
+                <Link href="/admin/transporters" className="flex w-full items-start gap-3">
                   <div className="flex size-9 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground">
                     <Building2 className="size-4" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="whitespace-normal wrap-break-word font-semibold leading-snug text-foreground">Companies</p>
+                    <p className="whitespace-normal wrap-break-word font-semibold leading-snug text-foreground">Transporters</p>
                     <p className="mt-0.5 whitespace-normal wrap-break-word text-xs leading-snug text-muted-foreground">
-                      Operators, branding, compliance
+                      Approvals, provisioning, lifecycle
                     </p>
                   </div>
                 </Link>

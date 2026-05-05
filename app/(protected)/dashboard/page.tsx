@@ -296,7 +296,7 @@ export default function DashboardPage() {
                   <Shield className="size-5" aria-hidden />
                 </div>
                 <CardTitle className="text-base">Administration</CardTitle>
-                <CardDescription>Passengers, companies, and platform configuration.</CardDescription>
+                <CardDescription>Passengers, transporters, and platform configuration.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {isAdmin ? (
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                       <Link href="/admin/users">Passengers</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/admin/companies">Companies</Link>
+                      <Link href="/admin/transporters">Transporters</Link>
                     </Button>
                   </>
                 ) : (

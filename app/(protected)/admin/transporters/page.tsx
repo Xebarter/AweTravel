@@ -41,6 +41,7 @@ import type { TransporterApprovalStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
   CheckCircle2,
+  Copy,
   Clock,
   Inbox,
   Pencil,
@@ -132,6 +133,8 @@ export default function AdminTransportersPage() {
   const [createBusy, setCreateBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminTransporterRow | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [viewTarget, setViewTarget] = useState<AdminTransporterRow | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!editTarget) return;
@@ -174,6 +177,7 @@ export default function AdminTransportersPage() {
       (r) =>
         r.full_name.toLowerCase().includes(q) ||
         r.email.toLowerCase().includes(q) ||
+        (r.phone ?? '').toLowerCase().includes(q) ||
         r.id.toLowerCase().includes(q),
     );
   }, [rows, search]);
@@ -251,7 +255,7 @@ export default function AdminTransportersPage() {
       setCreatePhone('');
       await reload();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Could not create operator.');
+      setActionError(e instanceof Error ? e.message : 'Could not create transporter.');
     } finally {
       setCreateBusy(false);
     }
@@ -272,6 +276,16 @@ export default function AdminTransportersPage() {
     }
   };
 
+  const copyId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // ignore
+    }
+  };
+
   const tabs: { id: FilterTab; label: string; count?: number }[] = [
     { id: 'pending', label: 'Pending', count: globalCounts.pending },
     { id: 'approved', label: 'Approved', count: globalCounts.approved },
@@ -280,7 +294,7 @@ export default function AdminTransportersPage() {
   ];
 
   const kpiItems = [
-    { key: 'total', label: 'Total operators', value: globalCounts.total },
+    { key: 'total', label: 'Total transporters', value: globalCounts.total },
     { key: 'pending', label: 'Pending review', value: globalCounts.pending },
     { key: 'approved', label: 'Approved', value: globalCounts.approved },
     { key: 'rejected', label: 'Rejected', value: globalCounts.rejected },
@@ -293,13 +307,13 @@ export default function AdminTransportersPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Administration · Operators
+                Administration · Transporters
               </p>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem] sm:leading-tight">
                 Transporter management
               </h1>
               <p className="max-w-2xl pt-2 text-sm leading-relaxed text-muted-foreground">
-                Full operator lifecycle: review approvals, edit profiles, provision accounts, and remove access.
+                Full transporter lifecycle: review approvals, edit profiles, provision accounts, and remove access.
                 Traveler accounts are managed under{' '}
                 <Link href="/admin/users" className="font-medium text-primary underline-offset-4 hover:underline">
                   Passengers
@@ -385,7 +399,7 @@ export default function AdminTransportersPage() {
                   }}
                 >
                   <Plus className="size-3.5" aria-hidden />
-                  Add operator
+                  Add transporter
                 </Button>
                 <div className="relative w-full sm:min-w-[220px] lg:max-w-xs">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -457,7 +471,15 @@ export default function AdminTransportersPage() {
               <ul className="divide-y divide-border">
                 {filtered.map((r) => (
                   <li key={r.id}>
-                    <div className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+                    <button
+                      type="button"
+                      className="block w-full text-left"
+                      onClick={() => {
+                        setActionError(null);
+                        setViewTarget(r);
+                      }}
+                    >
+                      <div className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
                       <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div
                           className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-[10px] font-semibold text-muted-foreground"
@@ -503,7 +525,8 @@ export default function AdminTransportersPage() {
                           variant="outline"
                           size="sm"
                           className="h-8 gap-1.5 text-xs"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setActionError(null);
                             setEditTarget(r);
                           }}
@@ -516,7 +539,8 @@ export default function AdminTransportersPage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setActionError(null);
                             setDeleteTarget(r);
                           }}
@@ -530,7 +554,10 @@ export default function AdminTransportersPage() {
                               type="button"
                               size="sm"
                               className="h-8 gap-1.5 text-xs font-medium"
-                              onClick={() => setApproveId(r.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setApproveId(r.id);
+                              }}
                             >
                               <CheckCircle2 className="size-3.5" aria-hidden />
                               Approve
@@ -540,7 +567,8 @@ export default function AdminTransportersPage() {
                               variant="outline"
                               size="sm"
                               className="h-8 gap-1.5 text-xs font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setRejectReason('');
                                 setRejectTarget(r);
                               }}
@@ -557,6 +585,7 @@ export default function AdminTransportersPage() {
                         ) : null}
                       </div>
                     </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -565,10 +594,135 @@ export default function AdminTransportersPage() {
         </Card>
       </div>
 
+      <Dialog
+        open={viewTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setViewTarget(null);
+            setCopied(false);
+          }
+        }}
+      >
+        <DialogContent className="border-border sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Transporter details</DialogTitle>
+            <DialogDescription className="text-sm">
+              Review profile, approval status, and audit timestamps. Use actions below to update or remove access.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewTarget ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/20 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{viewTarget.full_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{viewTarget.email}</p>
+                    {viewTarget.phone ? (
+                      <p className="truncate text-[11px] text-muted-foreground tabular-nums">{viewTarget.phone}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {statusBadge(viewTarget.transporter_approval_status)}
+                    {viewTarget.kyc_verified ? (
+                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal text-muted-foreground">
+                        KYC
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">User ID</p>
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+                      <span className="min-w-0 truncate font-mono text-[11px] text-foreground">{viewTarget.id}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-[11px]"
+                        onClick={() => void copyId(viewTarget.id)}
+                      >
+                        <Copy className="size-3" aria-hidden />
+                        {copied ? 'Copied' : 'Copy'}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Joined</p>
+                    <p className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-foreground">
+                      {formatJoined(viewTarget.created_at)}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Approved at</p>
+                    <p className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-foreground">
+                      {viewTarget.transporter_approved_at ? formatJoined(viewTarget.transporter_approved_at) : '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Status</p>
+                    <p className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-foreground capitalize">
+                      {viewTarget.transporter_approval_status}
+                    </p>
+                  </div>
+                </div>
+
+                {viewTarget.transporter_approval_status === 'rejected' && viewTarget.transporter_rejection_reason ? (
+                  <div className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Rejection reason</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{viewTarget.transporter_rejection_reason}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setViewTarget(null)}>
+              Close
+            </Button>
+            {viewTarget ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  onClick={() => {
+                    setActionError(null);
+                    setViewTarget(null);
+                    setEditTarget(viewTarget);
+                  }}
+                >
+                  <Pencil className="mr-1.5 size-3.5" aria-hidden />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="h-9"
+                  onClick={() => {
+                    setActionError(null);
+                    setViewTarget(null);
+                    setDeleteTarget(viewTarget);
+                  }}
+                >
+                  <Trash2 className="mr-1.5 size-3.5" aria-hidden />
+                  Delete
+                </Button>
+              </>
+            ) : null}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={approveId !== null} onOpenChange={(o) => !o && setApproveId(null)}>
         <AlertDialogContent className="border-border sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold">Approve operator access</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold">Approve transporter access</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
               This account will immediately receive full access to routes, vehicles, schedules, and bookings. Confirm
               that internal verification is complete.
@@ -604,7 +758,7 @@ export default function AdminTransportersPage() {
               {rejectTarget ? (
                 <>
                   <span className="font-medium text-foreground">{rejectTarget.full_name}</span> will not be able to use
-                  the operator dashboard. The reason you provide is shown on their account.
+                  the transporter dashboard. The reason you provide is shown on their account.
                 </>
               ) : null}
             </DialogDescription>
@@ -659,7 +813,7 @@ export default function AdminTransportersPage() {
       >
         <DialogContent className="border-border sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Edit operator</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Edit transporter</DialogTitle>
             <DialogDescription className="text-sm">
               Update profile details. Changing email requires the service role key on the server.
             </DialogDescription>
@@ -723,7 +877,7 @@ export default function AdminTransportersPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="border-border sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Add operator</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Add transporter</DialogTitle>
             <DialogDescription className="text-sm">
               Creates a Supabase auth user and a transporter profile (pending approval). Requires{' '}
               <code className="rounded bg-muted px-1 text-xs">SUPABASE_SERVICE_ROLE_KEY</code> on the server.
@@ -795,7 +949,7 @@ export default function AdminTransportersPage() {
               }
               onClick={() => void handleCreateSubmit()}
             >
-              {createBusy ? 'Creating…' : 'Create operator'}
+              {createBusy ? 'Creating…' : 'Create transporter'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -804,7 +958,7 @@ export default function AdminTransportersPage() {
       <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent className="border-border sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold">Delete operator account</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold">Delete transporter account</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
               {deleteTarget ? (
                 <>

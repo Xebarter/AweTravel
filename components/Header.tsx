@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import { LogOut, Settings, User, Menu } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 function isPassengerNavActive(href: string, pathname: string): boolean {
@@ -20,12 +20,41 @@ export function Header() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [showMenu, setShowMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const isAdmin = profile?.user_type === 'admin';
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
+    setShowProfileMenu(false);
+    setShowMobileMenu(false);
     await signOut();
     router.push('/login');
   };
+
+  useEffect(() => {
+    if (!showProfileMenu) return;
+
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const el = profileMenuRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && el.contains(e.target)) return;
+      setShowProfileMenu(false);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowProfileMenu(false);
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown, { passive: true });
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showProfileMenu]);
 
   const getDashboardUrl = () => {
     if (!profile) return '/';
@@ -40,7 +69,7 @@ export function Header() {
         return [
           { href: '/admin', label: 'Dashboard' },
           { href: '/admin/users', label: 'Passengers' },
-          { href: '/admin/companies', label: 'Companies' },
+          { href: '/admin/transporters', label: 'Transporters' },
         ];
       case 'transporter':
         return [
@@ -103,9 +132,9 @@ export function Header() {
             <NotificationCenter />
 
             {/* Profile Menu */}
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
-                onClick={() => setShowMenu(!showMenu)}
+                onClick={() => setShowProfileMenu((v) => !v)}
                 className="p-2 hover:bg-secondary rounded-lg transition flex items-center gap-2"
               >
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
@@ -117,54 +146,61 @@ export function Header() {
               </button>
 
               {/* Dropdown Menu */}
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg">
-                  <div className="p-3 border-b border-border">
-                    <p className="font-medium text-foreground text-sm">{profile?.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{profile?.email}</p>
-                    <p className="text-xs text-accent font-medium mt-1 capitalize">{profile?.user_type}</p>
-                  </div>
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-lg">
+                  {isAdmin ? (
+                    <div className="p-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 w-full justify-start rounded-lg px-3 text-sm font-medium text-destructive hover:bg-destructive/10"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Logout
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-3 border-b border-border">
+                        <p className="font-medium text-foreground text-sm">{profile?.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{profile?.email}</p>
+                        <p className="text-xs text-accent font-medium mt-1 capitalize">{profile?.user_type}</p>
+                      </div>
 
-                  <div className="p-2 space-y-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      asChild
-                    >
-                      <Link href="/profile">
-                        <User className="h-4 w-4 mr-2" />
-                        Profile Settings
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Preferences
-                    </Button>
-                  </div>
+                      <div className="p-2 space-y-1">
+                        <Button variant="ghost" size="sm" className="w-full justify-start text-sm" asChild>
+                          <Link href="/profile">
+                            <User className="h-4 w-4 mr-2" />
+                            Profile Settings
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="sm" className="w-full justify-start text-sm">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Preferences
+                        </Button>
+                      </div>
 
-                  <div className="border-t border-border p-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-destructive hover:bg-destructive/10 text-sm"
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Logout
-                    </Button>
-                  </div>
+                      <div className="border-t border-border p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-destructive hover:bg-destructive/10 text-sm"
+                          onClick={handleLogout}
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Logout
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Mobile Menu Button */}
             <button
-              onClick={() => setShowMenu(!showMenu)}
+              onClick={() => setShowMobileMenu((v) => !v)}
               className="md:hidden p-2 hover:bg-secondary rounded-lg transition"
             >
               <Menu className="h-5 w-5" />
@@ -173,7 +209,7 @@ export function Header() {
         </div>
 
         {/* Mobile Navigation */}
-        {showMenu && (
+        {showMobileMenu && (
           <div className="md:hidden pb-3 border-t border-border space-y-1">
             {getNavLinks().map((link) => {
               const passengerActive =
@@ -189,7 +225,7 @@ export function Header() {
                         ? 'bg-background text-foreground shadow-sm ring-1 ring-border hover:bg-background hover:text-foreground'
                         : 'text-muted-foreground hover:text-foreground',
                     )}
-                    onClick={() => setShowMenu(false)}
+                    onClick={() => setShowMobileMenu(false)}
                   >
                     {link.label}
                   </Button>
