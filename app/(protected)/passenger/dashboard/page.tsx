@@ -7,9 +7,9 @@ import {
   Bus,
   Calendar,
   ChevronRight,
+  Compass,
   MapPin,
   RefreshCw,
-  Sparkles,
   CreditCard,
   Search,
   Ticket,
@@ -103,7 +103,7 @@ export default function PassengerDashboardPage() {
           <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-xl space-y-3">
               <p className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm dark:bg-card/60">
-                <Sparkles className="size-3.5 text-accent" aria-hidden />
+                <Compass className="size-3.5 text-accent" aria-hidden />
                 Your travel hub
               </p>
               <div>

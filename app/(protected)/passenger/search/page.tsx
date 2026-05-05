@@ -9,9 +9,6 @@ import { RouteCard } from '@/components/passenger/RouteCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -19,29 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/currency';
 import { AvailableRoute } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import {
   ArrowRight,
   Bus,
   CalendarDays,
-  CircleX,
+  Compass,
   Filter,
   HeartHandshake,
   MapPin,
-  SlidersHorizontal,
-  Sparkles,
 } from 'lucide-react';
 
 type SortKey = 'price' | 'duration' | 'departure';
@@ -57,78 +42,6 @@ function formatTripDate(dateStr: string) {
   const d = parse(dateStr, 'yyyy-MM-dd', new Date());
   if (!isValid(d)) return dateStr;
   return format(d, 'EEEE, MMM d, yyyy');
-}
-
-function SearchFiltersBody({
-  sortBy,
-  onSortChange,
-  priceBands,
-  onTogglePriceBand,
-  onReset,
-  className,
-}: {
-  sortBy: SortKey;
-  onSortChange: (v: SortKey) => void;
-  priceBands: { low: boolean; mid: boolean; high: boolean };
-  onTogglePriceBand: (band: keyof typeof priceBands) => void;
-  onReset: () => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn('space-y-6', className)}>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">Refine results</h3>
-        <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onReset}>
-          <CircleX className="size-4" aria-hidden />
-          Reset
-        </Button>
-      </div>
-
-      <div>
-        <h4 className="mb-3 text-sm font-medium text-foreground">Sort by</h4>
-        <RadioGroup
-          value={sortBy}
-          onValueChange={(v) => onSortChange(v as SortKey)}
-          className="grid gap-2"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <div key={opt.value} className="flex items-center gap-3">
-              <RadioGroupItem value={opt.value} id={`sort-${opt.value}`} />
-              <Label htmlFor={`sort-${opt.value}`} className="cursor-pointer font-normal text-muted-foreground">
-                {opt.label}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-
-      <Separator />
-
-      <div>
-        <h4 className="mb-3 text-sm font-medium text-foreground">Price range</h4>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Checkbox id="pr-low" checked={priceBands.low} onCheckedChange={() => onTogglePriceBand('low')} />
-            <Label htmlFor="pr-low" className="cursor-pointer font-normal text-muted-foreground">
-              Below {formatCurrency(5000)}
-            </Label>
-          </div>
-          <div className="flex items-center gap-3">
-            <Checkbox id="pr-mid" checked={priceBands.mid} onCheckedChange={() => onTogglePriceBand('mid')} />
-            <Label htmlFor="pr-mid" className="cursor-pointer font-normal text-muted-foreground">
-              {formatCurrency(5000)} – {formatCurrency(10000)}
-            </Label>
-          </div>
-          <div className="flex items-center gap-3">
-            <Checkbox id="pr-high" checked={priceBands.high} onCheckedChange={() => onTogglePriceBand('high')} />
-            <Label htmlFor="pr-high" className="cursor-pointer font-normal text-muted-foreground">
-              Above {formatCurrency(10000)}
-            </Label>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function ResultsSkeleton() {
@@ -164,8 +77,7 @@ function SearchContent() {
   const [results, setResults] = useState<AvailableRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortKey>('price');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [priceBands, setPriceBands] = useState({ low: true, mid: true, high: true });
+  const [companyId, setCompanyId] = useState<string>('all');
 
   const origin = searchParams.get('from') || '';
   const destination = searchParams.get('to') || '';
@@ -174,119 +86,6 @@ function SearchContent() {
 
   const hasSearchCriteria = Boolean(origin.trim() && destination.trim() && date);
   const formattedDate = formatTripDate(date);
-
-  const mockRoutes: AvailableRoute[] = [
-    {
-      trip_id: '1',
-      route: {
-        id: '1',
-        company_id: '1',
-        route_code: 'LI-001',
-        origin_city: origin || 'Lagos',
-        destination_city: destination || 'Ibadan',
-        distance_km: 125,
-        estimated_duration_minutes: 180,
-        route_type: 'bus',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      },
-      schedule: {
-        id: '1',
-        route_id: '1',
-        departure_time: '08:00 AM',
-        arrival_time: '11:00 AM',
-        days_of_week: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        is_active: true,
-        created_at: new Date().toISOString(),
-      },
-      vehicle: {
-        id: '1',
-        company_id: '1',
-        vehicle_registration: 'LG-2024-001',
-        vehicle_type: 'bus',
-        capacity: 50,
-        current_status: 'active',
-        created_at: new Date().toISOString(),
-      },
-      company: {
-        id: '1',
-        owner_user_id: '1',
-        company_name: 'Premium Travel Ltd',
-        registration_number: 'REG-2020-001',
-        license_number: 'LIC-2020-001',
-        verified: true,
-        contact_email: 'info@premiumtravel.com',
-        contact_phone: '+234 700 000 0001',
-        headquarters_location: 'Lagos',
-        created_at: new Date().toISOString(),
-      },
-      available_seats: Array.from({ length: 35 }, (_, i) => ({
-        id: `seat-${i + 1}`,
-        vehicle_id: '1',
-        seat_number: `A${String(i + 1).padStart(2, '0')}`,
-        seat_type: i < 5 ? 'premium' : i < 6 ? 'handicap' : 'regular',
-        base_price: i < 5 ? 7500 : 5000,
-        created_at: new Date().toISOString(),
-      })),
-      total_seats: 50,
-      booked_seats: 15,
-    },
-    {
-      trip_id: '2',
-      route: {
-        id: '2',
-        company_id: '2',
-        route_code: 'LI-002',
-        origin_city: origin || 'Lagos',
-        destination_city: destination || 'Ibadan',
-        distance_km: 125,
-        estimated_duration_minutes: 180,
-        route_type: 'bus',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      },
-      schedule: {
-        id: '2',
-        route_id: '2',
-        departure_time: '02:00 PM',
-        arrival_time: '05:00 PM',
-        days_of_week: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        is_active: true,
-        created_at: new Date().toISOString(),
-      },
-      vehicle: {
-        id: '2',
-        company_id: '2',
-        vehicle_registration: 'LG-2024-002',
-        vehicle_type: 'bus',
-        capacity: 45,
-        current_status: 'active',
-        created_at: new Date().toISOString(),
-      },
-      company: {
-        id: '2',
-        owner_user_id: '2',
-        company_name: 'Safe Journey Coaches',
-        registration_number: 'REG-2021-002',
-        license_number: 'LIC-2021-002',
-        verified: true,
-        contact_email: 'info@safejourneycoaches.com',
-        contact_phone: '+234 700 000 0002',
-        headquarters_location: 'Lagos',
-        created_at: new Date().toISOString(),
-      },
-      available_seats: Array.from({ length: 28 }, (_, i) => ({
-        id: `seat-${i + 1}`,
-        vehicle_id: '2',
-        seat_number: `B${String(i + 1).padStart(2, '0')}`,
-        seat_type: i < 4 ? 'premium' : 'regular',
-        base_price: i < 4 ? 6500 : 4500,
-        created_at: new Date().toISOString(),
-      })),
-      total_seats: 45,
-      booked_seats: 17,
-    },
-  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -322,13 +121,29 @@ function SearchContent() {
     };
   }, [hasSearchCriteria, origin, destination, date]);
 
+  const companyOptions = (() => {
+    const byId = new Map<string, { id: string; name: string }>();
+    for (const r of results) {
+      const id = r.company?.owner_user_id || r.company?.id;
+      const name = r.company?.company_name?.trim();
+      if (!id || !name) continue;
+      if (!byId.has(id)) byId.set(id, { id, name });
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  // If the selected company disappears (new search), reset to "all".
+  useEffect(() => {
+    if (companyId === 'all') return;
+    const stillExists = companyOptions.some((c) => c.id === companyId);
+    if (!stillExists) setCompanyId('all');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin, destination, date, results]);
+
   const filteredResults = results.filter((r) => {
-    if (r.available_seats.length === 0) return false;
-    const minPrice = Math.min(...r.available_seats.map((s) => s.base_price));
-    const isLow = minPrice < 5000;
-    const isMid = minPrice >= 5000 && minPrice <= 10000;
-    const isHigh = minPrice > 10000;
-    return (priceBands.low && isLow) || (priceBands.mid && isMid) || (priceBands.high && isHigh);
+    if (companyId === 'all') return true;
+    const id = r.company?.owner_user_id || r.company?.id;
+    return id === companyId;
   });
 
   const sortedResults = [...filteredResults].sort((a, b) => {
@@ -344,16 +159,6 @@ function SearchContent() {
   });
 
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Sort';
-  const activePriceLabels = [
-    priceBands.low ? `Below ${formatCurrency(5000)}` : null,
-    priceBands.mid ? `${formatCurrency(5000)}–${formatCurrency(10000)}` : null,
-    priceBands.high ? `Above ${formatCurrency(10000)}` : null,
-  ].filter(Boolean) as string[];
-
-  const resetFilters = () => {
-    setSortBy('price');
-    setPriceBands({ low: true, mid: true, high: true });
-  };
 
   return (
     <div className="min-h-0 pb-12">
@@ -363,7 +168,7 @@ function SearchContent() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-primary">
-                <Sparkles className="size-5 shrink-0" aria-hidden />
+                <Compass className="size-5 shrink-0" aria-hidden />
                 <span className="text-sm font-medium tracking-wide">Find your ride</span>
               </div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Search trips</h1>
@@ -431,56 +236,10 @@ function SearchContent() {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="grid gap-8 lg:grid-cols-12">
-          <aside className="hidden lg:col-span-3 lg:block">
-            <Card className="sticky top-16 border-border/80 shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                  <Filter className="size-4 text-primary" aria-hidden />
-                  Filters
-                </CardTitle>
-                <CardDescription>Narrow results by price and amenities</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SearchFiltersBody
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                  priceBands={priceBands}
-                  onTogglePriceBand={(band) => setPriceBands((p) => ({ ...p, [band]: !p[band] }))}
-                  onReset={resetFilters}
-                />
-              </CardContent>
-            </Card>
-          </aside>
-
-          <div className="lg:col-span-9">
-            <div className="mb-6 rounded-xl border border-border/70 bg-card/60 px-4 py-4 shadow-xs backdrop-blur sm:px-5">
+        <div className="space-y-6">
+            <div className="sticky top-0 z-20 -mx-4 mb-6 rounded-none border-b border-border/70 bg-background/85 px-4 py-4 shadow-xs backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:bg-card/60 sm:px-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-                    <SheetTrigger asChild>
-                      <Button type="button" variant="outline" size="sm" className="lg:hidden">
-                        <SlidersHorizontal className="size-4" aria-hidden />
-                        Filters
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="w-full gap-0 overflow-y-auto sm:max-w-md">
-                      <SheetHeader className="text-left">
-                        <SheetTitle>Refine trips</SheetTitle>
-                        <SheetDescription>Sort and filter to find the best option</SheetDescription>
-                      </SheetHeader>
-                      <div className="mt-6 px-1">
-                        <SearchFiltersBody
-                          sortBy={sortBy}
-                          onSortChange={setSortBy}
-                          priceBands={priceBands}
-                          onTogglePriceBand={(band) => setPriceBands((p) => ({ ...p, [band]: !p[band] }))}
-                          onReset={resetFilters}
-                        />
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-
                   {!loading ? (
                     <p className="text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">{sortedResults.length}</span>{' '}
@@ -491,9 +250,24 @@ function SearchContent() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+                  <Select value={companyId} onValueChange={setCompanyId} disabled={!hasSearchCriteria || loading}>
+                    <SelectTrigger size="sm" className="w-full sm:min-w-[220px] sm:w-auto">
+                      <SelectValue placeholder="Travel company">
+                        {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All companies</SelectItem>
+                      {companyOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-                    <SelectTrigger size="sm" className="min-w-[200px]">
+                    <SelectTrigger size="sm" className="w-full sm:min-w-[200px] sm:w-auto">
                       <SelectValue placeholder="Sort by">{sortLabel}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -507,7 +281,7 @@ function SearchContent() {
                   {hasSearchCriteria ? (
                     <Badge variant="outline" className="hidden sm:inline-flex gap-1.5 font-normal">
                       <Filter className="size-3.5 text-muted-foreground" aria-hidden />
-                      {activePriceLabels.length === 3 ? 'Any price' : activePriceLabels.join(', ')}
+                      {companyId === 'all' ? 'All companies' : companyOptions.find((c) => c.id === companyId)?.name ?? 'Company'}
                     </Badge>
                   ) : null}
                 </div>
@@ -536,12 +310,14 @@ function SearchContent() {
                   </div>
                   <h2 className="text-lg font-semibold text-foreground">No trips match this search</h2>
                   <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                    Try a different date, or reset filters to widen the price range.
+                    Try a different date, or select a different travel company.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    <Button type="button" variant="outline" className="font-semibold" onClick={resetFilters}>
-                      Reset filters
-                    </Button>
+                    {companyId !== 'all' ? (
+                      <Button type="button" variant="outline" className="font-semibold" onClick={() => setCompanyId('all')}>
+                        Clear company filter
+                      </Button>
+                    ) : null}
                     <Button asChild variant="default" className="font-semibold shadow-sm">
                       <Link href="/passenger/dashboard">Back to dashboard</Link>
                     </Button>
@@ -557,7 +333,6 @@ function SearchContent() {
                 ))}
               </ul>
             )}
-          </div>
         </div>
       </div>
     </div>

@@ -1,15 +1,20 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency } from '@/lib/currency';
 import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
 import { fetchPublicPlatformSettings } from '@/lib/platform-settings/public-client';
-import { CreditCard, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { AlertCircle, CheckCircle, ChevronLeft, CreditCard, Lock } from 'lucide-react';
 
 function PaymentContent() {
   const router = useRouter();
@@ -55,7 +60,7 @@ function PaymentContent() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCardDetails(prev => ({
+    setCardDetails((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -101,18 +106,18 @@ function PaymentContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md border-border">
-          <CardContent className="pt-12 pb-12 text-center">
-            <div className="flex justify-center mb-4">
-              <CheckCircle className="h-16 w-16 text-success" />
+      <div className="min-h-screen bg-background px-4 py-12 sm:px-6">
+        <Card className="mx-auto w-full max-w-md border-border/80">
+          <CardContent className="pt-10 pb-10 text-center">
+            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle className="h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Payment Successful!</h2>
-            <p className="text-muted-foreground mb-6">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Payment successful</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               Your booking has been confirmed. Redirecting to confirmation page...
             </p>
-            <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-              <div className="h-full animate-pulse bg-primary/30 dark:bg-primary/40" />
+            <div className="mt-6 h-1 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full animate-pulse bg-primary/30 dark:bg-primary/40" aria-hidden />
             </div>
           </CardContent>
         </Card>
@@ -121,181 +126,237 @@ function PaymentContent() {
   }
 
   return (
-    <div className="min-h-screen pb-12 bg-gradient-to-br from-background to-secondary/30">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Payment Details</h1>
-          <p className="text-muted-foreground">Secure payment with Paytota</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Payment Form */}
-          <div className="md:col-span-2">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Enter Your Payment Details</CardTitle>
-                <CardDescription>Your payment is secured with Paytota encryption</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handlePayment} className="space-y-6">
-                  {error && (
-                    <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm">{error}</p>
-                    </div>
-                  )}
-
-                  {/* Cardholder Name */}
-                  <div className="space-y-2">
-                    <label htmlFor="cardName" className="text-sm font-medium">
-                      Cardholder Name
-                    </label>
-                    <Input
-                      id="cardName"
-                      name="cardName"
-                      placeholder="John Doe"
-                      value={cardDetails.cardName}
-                      onChange={handleInputChange}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-
-                  {/* Card Number */}
-                  <div className="space-y-2">
-                    <label htmlFor="cardNumber" className="text-sm font-medium">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <Input
-                        id="cardNumber"
-                        name="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardDetails.cardNumber}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\s/g, '');
-                          if (/^\d*$/.test(value)) {
-                            const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
-                            setCardDetails(prev => ({ ...prev, cardNumber: formatted }));
-                          }
-                        }}
-                        required
-                        disabled={loading}
-                        maxLength={19}
-                      />
-                      <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-
-                  {/* Expiry and CVV */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="expiryMonth" className="text-sm font-medium">
-                        Month
-                      </label>
-                      <Input
-                        id="expiryMonth"
-                        name="expiryMonth"
-                        placeholder="MM"
-                        value={cardDetails.expiryMonth}
-                        onChange={handleInputChange}
-                        required
-                        disabled={loading}
-                        maxLength={2}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="expiryYear" className="text-sm font-medium">
-                        Year
-                      </label>
-                      <Input
-                        id="expiryYear"
-                        name="expiryYear"
-                        placeholder="YY"
-                        value={cardDetails.expiryYear}
-                        onChange={handleInputChange}
-                        required
-                        disabled={loading}
-                        maxLength={2}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="cvv" className="text-sm font-medium">
-                        CVV
-                      </label>
-                      <Input
-                        id="cvv"
-                        name="cvv"
-                        placeholder="XXX"
-                        type="password"
-                        value={cardDetails.cvv}
-                        onChange={handleInputChange}
-                        required
-                        disabled={loading}
-                        maxLength={4}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Security Notice */}
-                  <div className="p-4 bg-success/10 border border-success/20 rounded-lg flex items-start gap-3">
-                    <Lock className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-success">
-                      Your payment is encrypted and secure. We use PCI DSS compliant systems.
-                    </p>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-accent hover:bg-accent-dark text-lg font-semibold py-6"
-                  >
-                    {loading ? 'Processing Payment...' : `Pay ${formatCurrency(bookingAmount)}`}
-                  </Button>
-
-                  <p className="text-xs text-center text-muted-foreground">
-                    By clicking pay, you agree to AweTravel&apos;s payment terms
-                  </p>
-                </form>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-background pb-12">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
+        <header className="flex flex-col gap-4 border-b border-border/80 pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <div>
+              <Button variant="ghost" size="sm" className="-ml-2 px-2 text-muted-foreground hover:text-foreground" asChild>
+                <Link href="/passenger/bookings">
+                  <ChevronLeft className="size-4" aria-hidden />
+                  Back to bookings
+                </Link>
+              </Button>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Payment</h1>
+            <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+              Secure checkout. Review your order summary, then enter your card details to confirm.
+            </p>
           </div>
 
-          {/* Order Summary */}
-          <div>
-            <Card className="border-border sticky top-16">
-              <CardHeader>
-                <CardTitle className="text-lg">Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Trip ID</p>
-                  <p className="font-mono text-sm text-foreground">{tripId}</p>
-                </div>
-
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">Ticket Price</span>
-                    <span className="font-medium text-foreground">{formatCurrency(ticketPrice)}</span>
-                  </div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">Platform Fee</span>
-                    <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
-                  </div>
-                  <div className="flex justify-between pt-3 border-t border-border">
-                    <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-lg text-accent">{formatCurrency(bookingAmount)}</span>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-secondary/30 rounded-lg text-xs text-muted-foreground">
-                  A confirmation email will be sent to <strong>{profile?.email}</strong>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="font-normal">
+              Powered by Paytota
+            </Badge>
           </div>
-        </div>
+        </header>
+
+        {!tripId ? (
+          <Card className="border-border/80">
+            <CardHeader>
+              <CardTitle className="text-lg">No trip selected</CardTitle>
+              <CardDescription>
+                This page expects a <code className="font-mono">tripId</code> in the URL. Start from search/bookings to pay for a seat.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/passenger/search">Search trips</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/passenger/bookings">My bookings</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+            <section className="lg:col-span-7">
+              <Card className="border-border/80 shadow-sm">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-lg">Card details</CardTitle>
+                  <CardDescription>Your payment details stay private. We do not store full card numbers.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handlePayment} className="space-y-6">
+                    {error ? (
+                      <Alert variant="destructive" className="border-destructive/40">
+                        <AlertCircle className="h-4 w-4" aria-hidden />
+                        <AlertTitle>Payment failed</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    ) : null}
+
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cardName">Cardholder name</Label>
+                        <Input
+                          id="cardName"
+                          name="cardName"
+                          placeholder="John Doe"
+                          autoComplete="cc-name"
+                          value={cardDetails.cardName}
+                          onChange={handleInputChange}
+                          required
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cardNumber">Card number</Label>
+                        <div className="relative">
+                          <Input
+                            id="cardNumber"
+                            name="cardNumber"
+                            placeholder="1234 5678 9012 3456"
+                            inputMode="numeric"
+                            autoComplete="cc-number"
+                            value={cardDetails.cardNumber}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\s/g, '');
+                              if (/^\d*$/.test(value)) {
+                                const formatted = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+                                setCardDetails((prev) => ({ ...prev, cardNumber: formatted }));
+                              }
+                            }}
+                            required
+                            disabled={loading}
+                            maxLength={19}
+                            className="pr-10"
+                          />
+                          <CreditCard className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Numbers only. Spaces are added automatically.</p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="expiryMonth">Month</Label>
+                          <Input
+                            id="expiryMonth"
+                            name="expiryMonth"
+                            placeholder="MM"
+                            inputMode="numeric"
+                            autoComplete="cc-exp-month"
+                            value={cardDetails.expiryMonth}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+                              setCardDetails((prev) => ({ ...prev, expiryMonth: v }));
+                            }}
+                            required
+                            disabled={loading}
+                            maxLength={2}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="expiryYear">Year</Label>
+                          <Input
+                            id="expiryYear"
+                            name="expiryYear"
+                            placeholder="YY"
+                            inputMode="numeric"
+                            autoComplete="cc-exp-year"
+                            value={cardDetails.expiryYear}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 2);
+                              setCardDetails((prev) => ({ ...prev, expiryYear: v }));
+                            }}
+                            required
+                            disabled={loading}
+                            maxLength={2}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cvv">CVV</Label>
+                          <Input
+                            id="cvv"
+                            name="cvv"
+                            placeholder="123"
+                            type="password"
+                            inputMode="numeric"
+                            autoComplete="cc-csc"
+                            value={cardDetails.cvv}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              setCardDetails((prev) => ({ ...prev, cvv: v }));
+                            }}
+                            required
+                            disabled={loading}
+                            maxLength={4}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Alert className="border-border/70">
+                      <Lock className="h-4 w-4 text-foreground/70" aria-hidden />
+                      <AlertTitle>Secure checkout</AlertTitle>
+                      <AlertDescription>
+                        Your payment is encrypted in transit. Use a card you have access to and double‑check the digits before paying.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="space-y-3">
+                      <Button type="submit" disabled={loading} className="w-full">
+                        {loading ? 'Processing…' : `Pay ${formatCurrency(bookingAmount)}`}
+                      </Button>
+                      <p className="text-center text-xs text-muted-foreground">
+                        By clicking pay, you agree to AweTravel&apos;s payment terms.
+                      </p>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </section>
+
+            <aside className="lg:col-span-5">
+              <Card className="sticky top-16 border-border/80 shadow-sm">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-lg">Order summary</CardTitle>
+                  <CardDescription>Review the amount before paying.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Trip</p>
+                      <p className="font-mono text-xs text-muted-foreground">{tripId}</p>
+                    </div>
+                    {seatId ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Seat</p>
+                        <p className="font-mono text-xs text-muted-foreground">{seatId}</p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Ticket price</span>
+                      <span className="font-medium text-foreground">{formatCurrency(ticketPrice)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Platform fee</span>
+                      <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
+                    </div>
+                    <div className="border-t border-border/80 pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">Total</span>
+                        <span className="text-lg font-semibold text-foreground">{formatCurrency(bookingAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
+                    A confirmation email will be sent to{' '}
+                    <span className={cn('font-medium text-foreground', !profile?.email && 'text-muted-foreground')}>
+                      {profile?.email ?? 'your account email'}
+                    </span>
+                    .
+                  </div>
+                </CardContent>
+              </Card>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -25,13 +25,14 @@ export function Header() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const isAdmin = profile?.user_type === 'admin';
   const transporterOnlyLogout = pathname.startsWith('/transporter');
+  const passengerOnlyLogout = pathname.startsWith('/passenger');
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
     setShowProfileMenu(false);
     setShowMobileMenu(false);
     await signOut();
-    router.push('/login');
+    router.push('/');
   };
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function Header() {
               {/* Dropdown Menu */}
               {showProfileMenu && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-lg">
-                  {isAdmin || transporterOnlyLogout ? (
+                  {isAdmin || transporterOnlyLogout || passengerOnlyLogout ? (
                     <div className="p-1.5">
                       <Button
                         variant="ghost"

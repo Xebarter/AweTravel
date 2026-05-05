@@ -14,12 +14,16 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import {
   createRouteHomeAdApplication,
   patchRouteHomeAdApplication,
   type RouteHomeAdApplicationWithRoute,
 } from '@/lib/route-home-ads/transporter-client';
 import type { Route } from '@/types/transporter-route';
+
+const HOME_ADS_BUCKET = 'home-ads';
 
 type Props = {
   route: Route | null;
@@ -43,8 +47,8 @@ export function RouteHomeAdDialog({
   const [headline, setHeadline] = useState('');
   const [subheadline, setSubheadline] = useState('');
   const [ctaLabel, setCtaLabel] = useState('Book now');
-  const [targetUrl, setTargetUrl] = useState('https://');
-  const [imageUrl, setImageUrl] = useState('https://');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [submitKind, setSubmitKind] = useState<'idle' | 'draft' | 'review'>('idle');
   const [error, setError] = useState<string | null>(null);
   const busy = submitKind !== 'idle';
@@ -53,8 +57,8 @@ export function RouteHomeAdDialog({
     setHeadline('');
     setSubheadline('');
     setCtaLabel('Book now');
-    setTargetUrl('https://');
-    setImageUrl('https://');
+    setImageFile(null);
+    setImagePreviewUrl(null);
     setError(null);
     setSubmitKind('idle');
   }, []);
@@ -68,28 +72,66 @@ export function RouteHomeAdDialog({
       setHeadline(existingDraft.headline);
       setSubheadline(existingDraft.subheadline ?? '');
       setCtaLabel(existingDraft.ctaLabel);
-      setTargetUrl(existingDraft.targetUrl);
-      setImageUrl(existingDraft.imageUrl);
+      setImageFile(null);
+      setImagePreviewUrl(null);
     } else {
       const label = `${route.origin} → ${route.destination}`;
       setHeadline(`Travel ${label}`);
       setCtaLabel('Book now');
-      setTargetUrl('https://');
-      setImageUrl('https://');
+      setImageFile(null);
+      setImagePreviewUrl(null);
     }
   }, [open, route, existingDraft, blockingPending]);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const submit = async (asDraft: boolean) => {
     if (!route || blockingPending) return;
     setSubmitKind(asDraft ? 'draft' : 'review');
     setError(null);
     try {
+      const appBaseUrl =
+        (process.env.NEXT_PUBLIC_APP_URL ?? '').trim().replace(/\/+$/, '') || 'https://example.com';
+      const targetUrl = `${appBaseUrl}/passenger/search?from=${encodeURIComponent(route.origin)}&to=${encodeURIComponent(route.destination)}`;
+
+      let resolvedImageUrl = existingDraft?.imageUrl ?? '';
+      if (imageFile) {
+        if (!imageFile.type.startsWith('image/')) {
+          throw new Error('Please upload an image file.');
+        }
+
+        const safeName = imageFile.name.replace(/[^\w.\-]+/g, '-');
+        const path = `route-home-ads/${route.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage.from(HOME_ADS_BUCKET).upload(path, imageFile, {
+          upsert: true,
+          contentType: imageFile.type,
+        });
+        if (upErr) {
+          throw new Error(upErr.message || 'Failed to upload image');
+        }
+
+        const pub = supabase.storage.from(HOME_ADS_BUCKET).getPublicUrl(path);
+        resolvedImageUrl = pub.data.publicUrl;
+      }
+
+      if (!resolvedImageUrl) {
+        throw new Error('Please upload an image for the homepage banner.');
+      }
+
       const body = {
         headline: headline.trim(),
         subheadline: subheadline.trim() || null,
         ctaLabel: ctaLabel.trim(),
-        targetUrl: targetUrl.trim(),
-        imageUrl: imageUrl.trim(),
+        targetUrl,
+        imageUrl: resolvedImageUrl,
       };
       if (existingDraft) {
         if (asDraft) {
@@ -184,29 +226,41 @@ export function RouteHomeAdDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-url">Target URL (https only)</Label>
-                <Input
-                  id="ad-url"
-                  type="url"
-                  value={targetUrl}
-                  onChange={(e) => setTargetUrl(e.target.value)}
-                  placeholder="https://example.com/your-offer"
-                  disabled={busy}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ad-img">Image URL (https only)</Label>
+                <Label htmlFor="ad-img">Banner image</Label>
                 <Input
                   id="ad-img"
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/banner.jpg"
+                  type="file"
+                  accept="image/*"
                   disabled={busy}
+                  className={cn('h-11 pt-2.5', busy && 'opacity-80')}
+                  onChange={(e) => {
+                    const f = e.currentTarget.files?.[0] ?? null;
+                    setError(null);
+                    setImageFile(f);
+                  }}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use a wide image (about 16:9). It will be cropped to fit the homepage strip.
+                  Upload a wide image (about 16:9). It will be cropped to fit the homepage strip.
                 </p>
+                {imagePreviewUrl ? (
+                  <div className="overflow-hidden rounded-lg border border-border/70 bg-muted/20">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreviewUrl}
+                      alt="Selected banner preview"
+                      className="aspect-video w-full object-cover"
+                    />
+                  </div>
+                ) : existingDraft?.imageUrl ? (
+                  <div className="overflow-hidden rounded-lg border border-border/70 bg-muted/20">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={existingDraft.imageUrl}
+                      alt="Current banner image"
+                      className="aspect-video w-full object-cover"
+                    />
+                  </div>
+                ) : null}
               </div>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </div>

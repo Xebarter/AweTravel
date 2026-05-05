@@ -30,13 +30,21 @@ export function PassengerQuickSearch({
   const router = useRouter();
   const [origin, setOrigin] = useState(initialFrom ?? '');
   const [destination, setDestination] = useState(initialTo ?? '');
-  const [date, setDate] = useState(initialDate ?? '');
+  const [date, setDate] = useState(() => {
+    const trimmed = initialDate?.trim();
+    if (trimmed) return trimmed;
+    // Default to today's date (YYYY-MM-DD) for better UX.
+    return new Date().toISOString().slice(0, 10);
+  });
   const [passengers, setPassengers] = useState(initialPassengers ?? '1');
 
   useEffect(() => {
     if (initialFrom !== undefined) setOrigin(initialFrom);
     if (initialTo !== undefined) setDestination(initialTo);
-    if (initialDate !== undefined) setDate(initialDate);
+    if (initialDate !== undefined) {
+      const trimmed = initialDate?.trim();
+      setDate(trimmed ? trimmed : new Date().toISOString().slice(0, 10));
+    }
     if (initialPassengers !== undefined) setPassengers(initialPassengers || '1');
   }, [initialFrom, initialTo, initialDate, initialPassengers]);
 
@@ -129,7 +137,7 @@ export function PassengerQuickSearch({
               autoComplete="off"
             />
           </div>
-          <div className="order-first sm:order-0 lg:col-span-1 lg:flex lg:justify-center">
+          <div className="sm:col-span-2 lg:col-span-1 lg:flex lg:justify-center">
             <Button
               type="button"
               variant="outline"
@@ -140,7 +148,7 @@ export function PassengerQuickSearch({
               aria-label="Swap origin and destination"
             >
               <ArrowLeftRight className="size-4" aria-hidden />
-              <span className="lg:sr-only">Swap</span>
+              <span className="text-sm font-medium lg:sr-only">Swap</span>
             </Button>
           </div>
           <div className="space-y-2 lg:col-span-2">

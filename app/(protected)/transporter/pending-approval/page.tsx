@@ -15,12 +15,12 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  Compass,
   Headphones,
   LogOut,
   Mail,
   RefreshCw,
   ShieldAlert,
-  Sparkles,
   Truck,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -131,7 +131,7 @@ export default function TransporterPendingApprovalPage() {
               </>
             ) : (
               <>
-                <Sparkles className="size-3.5 text-accent" aria-hidden />
+                <Compass className="size-3.5 text-accent" aria-hidden />
                 Operator onboarding
               </>
             )}
