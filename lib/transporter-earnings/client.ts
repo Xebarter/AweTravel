@@ -3,6 +3,8 @@ export type TransporterEarningsSummary = {
   payoutsCompletedUgx: number;
   payoutsPendingUgx: number;
   netUgx: number;
+  payoutRequestsPendingUgx: number;
+  availableUgx: number;
 };
 
 export type TransporterLedgerRow = {

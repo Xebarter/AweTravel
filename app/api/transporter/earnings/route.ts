@@ -51,6 +51,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to load earnings' }, { status: 500 });
   }
 
+  const { data: payoutRequestsAll, error: payoutReqErr } = await supabase
+    .from('transporter_payout_requests')
+    .select('amount_ugx,status')
+    .order('created_at', { ascending: false });
+
+  if (payoutReqErr) {
+    console.error('transporter earnings payout requests:', payoutReqErr);
+    return NextResponse.json({ error: 'Failed to load earnings' }, { status: 500 });
+  }
+
   const grossCompletedUgx = (completedSales ?? []).reduce((sum, r) => sum + Number(r.amount_ugx ?? 0), 0);
   let payoutsCompletedUgx = 0;
   let payoutsPendingUgx = 0;
@@ -61,11 +71,25 @@ export async function GET() {
     if (st === 'pending' || st === 'processing') payoutsPendingUgx += amt;
   }
 
+  let payoutRequestsPendingUgx = 0;
+  for (const row of payoutRequestsAll ?? []) {
+    const amt = Number((row as any).amount_ugx ?? 0);
+    const st = String((row as any).status ?? '');
+    if (st === 'pending' || st === 'approved') payoutRequestsPendingUgx += amt;
+  }
+
+  const availableUgx = Math.max(
+    0,
+    grossCompletedUgx - payoutsCompletedUgx - payoutsPendingUgx - payoutRequestsPendingUgx,
+  );
+
   const summary = {
     grossCompletedUgx,
     payoutsCompletedUgx,
     payoutsPendingUgx,
     netUgx: grossCompletedUgx - payoutsCompletedUgx,
+    payoutRequestsPendingUgx,
+    availableUgx,
   };
 
   return NextResponse.json({
