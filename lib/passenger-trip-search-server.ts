@@ -369,3 +369,146 @@ export async function queryTripSearchResults(
     sort,
   };
 }
+
+export type DepartureBookingPageResult =
+  | { ok: true; data: AvailableRoute; bookedSeatCodes: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Load one active departure with route, vehicle, company, synthetic seat grid, and booked seat codes for a travel date.
+ * Used by the passenger booking page (trip_id in UI = departure id).
+ */
+export async function fetchDepartureBookingPageData(
+  admin: SupabaseClient,
+  departureId: string,
+  travelDate: string,
+): Promise<DepartureBookingPageResult> {
+  const { data: dep, error: depErr } = await admin
+    .from('transporter_route_departures')
+    .select('id,route_id,vehicle_id,departure_time,price_override_minor,status')
+    .eq('id', departureId)
+    .maybeSingle();
+
+  if (depErr || !dep || dep.status !== 'active') {
+    return { ok: false, error: 'Departure not found' };
+  }
+
+  const { data: route, error: routeErr } = await admin
+    .from('transporter_routes')
+    .select(
+      'id,owner_user_id,route_code,origin,destination,distance_km,duration_minutes,vehicle_class,base_price_minor,currency,status',
+    )
+    .eq('id', dep.route_id)
+    .maybeSingle();
+
+  if (routeErr || !route || route.status !== 'active') {
+    return { ok: false, error: 'Route not available' };
+  }
+
+  const r = route as RouteRow;
+
+  let vehicleRow: VehicleRow | undefined;
+  if (dep.vehicle_id) {
+    const { data: v, error: vErr } = await admin
+      .from('transporter_vehicles')
+      .select('id,registration,vehicle_type,capacity')
+      .eq('id', dep.vehicle_id)
+      .maybeSingle();
+    if (!vErr && v) vehicleRow = v as VehicleRow;
+  }
+
+  const { data: company } = await admin
+    .from('transporter_company_profiles')
+    .select('owner_user_id,company_name,trading_name,support_email,support_phone,city,country')
+    .eq('owner_user_id', r.owner_user_id)
+    .maybeSingle();
+
+  const { data: bookingRows, error: bookErr } = await admin
+    .from('bookings')
+    .select('seat_code')
+    .eq('departure_id', departureId)
+    .eq('travel_date', travelDate)
+    .in('status', ['pending', 'confirmed']);
+
+  if (bookErr) {
+    console.error('fetchDepartureBookingPageData bookings:', bookErr);
+  }
+
+  const bookedSeatCodes = Array.from(
+    new Set(
+      ((bookingRows ?? []) as { seat_code: string }[])
+        .map((row) => row.seat_code?.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
+
+  const totalSeats = Math.max(1, Math.min(120, vehicleRow?.capacity ?? 50));
+  const basePrice =
+    typeof dep.price_override_minor === 'number' ? dep.price_override_minor : r.base_price_minor ?? 0;
+
+  const seats: Seat[] = [];
+  for (let i = 1; i <= totalSeats; i++) {
+    const num = `S${String(i).padStart(2, '0')}`;
+    seats.push({
+      id: num,
+      vehicle_id: vehicleRow?.id ?? 'unknown',
+      seat_number: num,
+      seat_type: 'regular',
+      base_price: basePrice,
+      created_at: new Date(0).toISOString(),
+    });
+  }
+
+  const companyObj = company
+    ? buildCompany(company as CompanyRow)
+    : buildCompany({
+        owner_user_id: r.owner_user_id,
+        company_name: 'Operator',
+        trading_name: null,
+        support_email: null,
+        support_phone: null,
+        city: null,
+        country: null,
+      });
+
+  const depart = safeTimeHHMM(dep.departure_time as string);
+  const availRoute: AvailableRoute = {
+    trip_id: dep.id as string,
+    route: {
+      id: r.id,
+      company_id: r.owner_user_id,
+      route_code: r.route_code,
+      origin_city: r.origin,
+      destination_city: r.destination,
+      distance_km: Number(r.distance_km ?? 0),
+      estimated_duration_minutes: Number(r.duration_minutes ?? 0),
+      route_type: routeTypeFromVehicleClass(r.vehicle_class),
+      is_active: true,
+      created_at: new Date(0).toISOString(),
+    },
+    schedule: {
+      id: dep.id as string,
+      route_id: r.id,
+      departure_time: depart,
+      arrival_time: '—',
+      days_of_week: [],
+      is_active: true,
+      created_at: new Date(0).toISOString(),
+    },
+    vehicle: {
+      id: vehicleRow?.id ?? 'unknown',
+      company_id: r.owner_user_id,
+      vehicle_registration: vehicleRow?.registration ?? '',
+      vehicle_type: routeTypeFromVehicleClass(vehicleRow?.vehicle_type ?? r.vehicle_class),
+      capacity: totalSeats,
+      current_status: 'active',
+      created_at: new Date(0).toISOString(),
+    },
+    company: companyObj,
+    available_seats: seats,
+    total_seats: totalSeats,
+    booked_seats: bookedSeatCodes.length,
+  };
+
+  return { ok: true, data: availRoute, bookedSeatCodes };
+}

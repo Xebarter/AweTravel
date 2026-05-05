@@ -11,9 +11,11 @@ import Link from 'next/link';
 
 interface RouteCardProps {
   route: AvailableRoute;
+  /** Travel date for the booking URL (YYYY-MM-DD). */
+  travelDate?: string;
 }
 
-export function RouteCard({ route }: RouteCardProps) {
+export function RouteCard({ route, travelDate }: RouteCardProps) {
   const minPrice =
     route.available_seats.length > 0 ? Math.min(...route.available_seats.map((s) => s.base_price)) : 0;
   const availableSeats = route.available_seats.length;
@@ -101,7 +103,10 @@ export function RouteCard({ route }: RouteCardProps) {
             <p className="text-xs text-muted-foreground">
               Route code <span className="font-medium text-foreground">{route.route.route_code}</span>
             </p>
-            <Link href={`/passenger/booking/${route.trip_id}`} className="sm:w-auto">
+            <Link
+              href={`/passenger/booking/${route.trip_id}${travelDate ? `?date=${encodeURIComponent(travelDate)}` : ''}`}
+              className="sm:w-auto"
+            >
               <Button className="h-11 w-full font-semibold shadow-sm sm:w-auto">
                 Select trip
               </Button>

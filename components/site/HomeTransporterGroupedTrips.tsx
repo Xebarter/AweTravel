@@ -11,9 +11,11 @@ function departureSortKey(t: AvailableRoute) {
 export function HomeTransporterGroupedTrips({
   trips,
   layout = 'stack',
+  travelDate,
 }: {
   trips: AvailableRoute[];
   layout?: 'stack' | 'grid';
+  travelDate?: string;
 }) {
   const groups = new Map<string, AvailableRoute[]>();
   for (const t of trips) {
@@ -47,7 +49,7 @@ export function HomeTransporterGroupedTrips({
           <ul className="space-y-4" aria-label="Departures for route">
             {items.map((r) => (
               <li key={`${r.trip_id}-${r.schedule.id}`}>
-                <RouteCard route={r} />
+                <RouteCard route={r} travelDate={travelDate} />
               </li>
             ))}
           </ul>

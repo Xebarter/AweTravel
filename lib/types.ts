@@ -126,7 +126,10 @@ export interface Booking {
 export interface PassengerBookingListItem {
   id: string;
   bookingId: string;
+  /** Route id (historical field name). */
   tripId: string;
+  /** Departure id when the booking is tied to a schedule row. */
+  departureId?: string | null;
   route: string;
   seat: string;
   date: string;

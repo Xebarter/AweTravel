@@ -309,7 +309,7 @@ function HomeBookingSection() {
               <ul className="space-y-4" aria-label="Available schedules">
                 {routes.map((r) => (
                   <li key={`${r.trip_id}-${r.schedule.id}`}>
-                    <RouteCard route={r} />
+                    <RouteCard route={r} travelDate={form.date} />
                   </li>
                 ))}
               </ul>

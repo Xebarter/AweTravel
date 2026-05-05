@@ -104,7 +104,7 @@ export default function OperatorPublicPage() {
                 when booking to confirm seats.
               </p>
             </header>
-            <HomeTransporterGroupedTrips trips={routes} layout="stack" />
+            <HomeTransporterGroupedTrips trips={routes} layout="stack" travelDate={date} />
           </>
         )}
       </main>

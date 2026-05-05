@@ -328,7 +328,7 @@ function SearchContent() {
             <ul className="space-y-4" aria-label="Available trips">
               {sortedResults.map((route) => (
                 <li key={route.trip_id}>
-                  <RouteCard route={route} />
+                  <RouteCard route={route} travelDate={date} />
                 </li>
               ))}
             </ul>
