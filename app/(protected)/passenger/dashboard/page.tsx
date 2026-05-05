@@ -10,6 +10,8 @@ import {
   MapPin,
   RefreshCw,
   Sparkles,
+  CreditCard,
+  Search,
   Ticket,
   TrendingUp,
   Wallet,
@@ -89,8 +91,6 @@ export default function PassengerDashboardPage() {
 
   return (
     <div className="min-h-0 pb-16">
-      <h1 className="sr-only">Passenger dashboard</h1>
-
       <div className="relative border-b border-border/60 bg-linear-to-b from-primary/6 via-accent/4 to-background dark:from-primary/10 dark:via-accent/5 dark:to-background">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-20"
@@ -100,36 +100,50 @@ export default function PassengerDashboardPage() {
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-8 sm:px-6 sm:pt-12 sm:pb-10">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-xl space-y-3">
               <p className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm dark:bg-card/60">
                 <Sparkles className="size-3.5 text-accent" aria-hidden />
                 Your travel hub
               </p>
               <div>
-                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                  {timeOfDayGreeting()}, {name}
-                </h2>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
                 <p className="mt-2 text-base text-muted-foreground sm:text-lg">
-                  Search routes, review upcoming departures, and pick up where you left off.
+                  {timeOfDayGreeting()}, {name}. Search routes, review upcoming departures, and pick up where you left off.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Button size="sm" className="shadow-sm" asChild>
-                  <Link href="/passenger/search">
-                    <Bus className="size-4" aria-hidden />
-                    Find a trip
-                  </Link>
-                </Button>
-                <Button size="sm" variant="outline" className="border-border/80 bg-background/60 backdrop-blur-sm" asChild>
-                  <Link href="/passenger/bookings">
-                    <Ticket className="size-4" aria-hidden />
-                    My bookings
-                  </Link>
-                </Button>
-              </div>
             </div>
-          </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={loading}
+                onClick={() => void refetch()}
+              >
+                <RefreshCw className={cn('size-4', loading && 'animate-spin')} aria-hidden />
+                Refresh
+              </Button>
+              <Button size="sm" className="w-full shadow-sm sm:w-auto" asChild>
+                <Link href="/passenger/search">
+                  <Search className="size-4" aria-hidden />
+                  Search trips
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full border-border/80 bg-background/60 backdrop-blur-sm sm:w-auto"
+                asChild
+              >
+                <Link href="/passenger/bookings">
+                  <Ticket className="size-4" aria-hidden />
+                  My bookings
+                </Link>
+              </Button>
+            </div>
+          </header>
         </div>
       </div>
 
@@ -137,6 +151,78 @@ export default function PassengerDashboardPage() {
         <div className="-mt-6 relative z-10 sm:-mt-8">
           <PassengerQuickSearch className="overflow-hidden border-border/60 shadow-md shadow-primary/5 ring-1 ring-border/40 dark:shadow-none" />
         </div>
+
+        <section aria-labelledby="quick-actions-heading" className="space-y-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 id="quick-actions-heading" className="text-xl font-semibold tracking-tight text-foreground">
+                Quick actions
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Jump to what you want to do next</p>
+            </div>
+          </div>
+
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
+            {[
+              {
+                title: 'Search trips',
+                description: 'Find routes and compare operators.',
+                href: '/passenger/search',
+                icon: Search,
+              },
+              {
+                title: 'My bookings',
+                description: 'See tickets and upcoming departures.',
+                href: '/passenger/bookings',
+                icon: Ticket,
+              },
+              {
+                title: 'Payments',
+                description: 'Complete payment for a booking.',
+                href: '/passenger/payment',
+                icon: CreditCard,
+              },
+              {
+                title: 'Next departure',
+                description: upcomingCount > 0 ? 'View your next trip details.' : 'No upcoming trips yet.',
+                href: upcomingCount > 0 ? `/passenger/booking/${upcoming[0]?.tripId ?? ''}` : '/passenger/search',
+                icon: Calendar,
+                disabled: upcomingCount === 0,
+              },
+            ].map(({ title, description, href, icon: Icon, disabled }) => (
+              <Card
+                key={title}
+                className="w-[260px] snap-start border-border/70 bg-card/80 shadow-sm dark:bg-card/50 sm:w-auto"
+              >
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10 dark:bg-primary/15">
+                      <Icon className="size-5" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-semibold text-foreground">{title}</p>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                      <div className="pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between"
+                          asChild
+                          disabled={disabled}
+                        >
+                          <Link href={href}>
+                            Open
+                            <ChevronRight className="size-4 opacity-70" aria-hidden />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
 
         {error ? (
           <Alert variant="destructive" className="border-destructive/40">

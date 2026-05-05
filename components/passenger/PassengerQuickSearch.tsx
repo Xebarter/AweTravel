@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin, Calendar, Users, Search } from 'lucide-react';
+import { MapPin, Calendar, Users, Search, ArrowLeftRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type PassengerQuickSearchProps = {
@@ -68,6 +68,20 @@ export function PassengerQuickSearch({
     setSearching(false);
   };
 
+  const swap = () => {
+    setOrigin((o) => {
+      setDestination(o);
+      return destination;
+    });
+    setValidation('');
+  };
+
+  const onEnterToSearch: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    handleSearch();
+  };
+
   const fieldClass = 'h-11 bg-background text-base shadow-sm md:text-sm';
 
   return (
@@ -95,6 +109,7 @@ export function PassengerQuickSearch({
               placeholder="Departure city"
               value={origin}
               onChange={(e) => setOrigin(e.target.value)}
+              onKeyDown={onEnterToSearch}
               className={fieldClass}
               autoComplete="off"
             />
@@ -109,16 +124,38 @@ export function PassengerQuickSearch({
               placeholder="Arrival city"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
+              onKeyDown={onEnterToSearch}
               className={fieldClass}
               autoComplete="off"
             />
+          </div>
+          <div className="order-first sm:order-0 lg:col-span-1 lg:flex lg:justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-11 w-full gap-2 lg:w-11 lg:px-0"
+              onClick={swap}
+              disabled={!origin.trim() && !destination.trim()}
+              aria-label="Swap origin and destination"
+            >
+              <ArrowLeftRight className="size-4" aria-hidden />
+              <span className="lg:sr-only">Swap</span>
+            </Button>
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label htmlFor="qs-date" className="flex items-center gap-2 text-foreground">
               <Calendar className="size-4 text-primary" aria-hidden />
               Date
             </Label>
-            <Input id="qs-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
+            <Input
+              id="qs-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              onKeyDown={onEnterToSearch}
+              className={fieldClass}
+            />
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label htmlFor="qs-passengers" className="flex items-center gap-2 text-foreground">
@@ -132,6 +169,7 @@ export function PassengerQuickSearch({
               max={20}
               value={passengers}
               onChange={(e) => setPassengers(e.target.value)}
+              onKeyDown={onEnterToSearch}
               className={fieldClass}
             />
           </div>
