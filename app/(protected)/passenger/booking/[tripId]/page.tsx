@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { SeatSelector } from '@/components/passenger/SeatSelector';
-import { BookingSummary } from '@/components/passenger/BookingSummary';
 import { PaymentForm } from '@/components/passenger/PaymentForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +14,6 @@ import {
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
-  DrawerNestedRoot,
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
@@ -74,7 +72,6 @@ export default function BookingPage() {
     travelDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(travelDateRaw) ? travelDateRaw : todayISO();
   const existingBookingId = searchParams.get('bookingId');
 
-  const [step, setStep] = useState<'seat' | 'summary' | 'payment'>('seat');
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -82,7 +79,6 @@ export default function BookingPage() {
   const [guestFullName, setGuestFullName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
 
-  const [summaryOpen, setSummaryOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
 
@@ -209,16 +205,44 @@ export default function BookingPage() {
     setError('');
   }, []);
 
-  const handleProceedToSummary = () => {
+  const handleProceedToPayment = async () => {
     if (!selectedSeat) {
       setError('Please select a seat');
       return;
     }
+    if (!profile) {
+      if (!guestFullName.trim()) {
+        setError('Please enter your full name');
+        return;
+      }
+      if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+        setError('Please enter a valid email address');
+        return;
+      }
+    }
+
     setError('');
+    const bookingUuid = await confirmBookingAndGetId();
+    if (!bookingUuid) return;
+
+    setPaymentBookingId(bookingUuid);
+
+    const payQ = new URLSearchParams({
+      tripId,
+      seatId: selectedSeat.id,
+      date: travelDate,
+    });
+    payQ.set('bookingId', bookingUuid);
+    if (!profile?.email?.trim() && guestEmail.trim()) {
+      payQ.set('guestEmail', guestEmail.trim());
+    }
+    const payUrl = `/passenger/payment?${payQ.toString()}`;
+    router.prefetch(payUrl);
+
     if (isMobile) {
-      setSummaryOpen(true);
+      setPaymentOpen(true);
     } else {
-      setStep('summary');
+      router.push(payUrl);
     }
   };
 
@@ -312,36 +336,10 @@ export default function BookingPage() {
     }
   };
 
-  const handleConfirmBooking = async () => {
-    const bookingUuid = await confirmBookingAndGetId();
-    if (!bookingUuid) return;
-
-    setPaymentBookingId(bookingUuid);
-
-    const payQ = new URLSearchParams({
-      tripId,
-      seatId: selectedSeat!.id,
-      date: travelDate,
-    });
-    payQ.set('bookingId', bookingUuid);
-    if (!profile?.email?.trim() && guestEmail.trim()) {
-      payQ.set('guestEmail', guestEmail.trim());
-    }
-    const payUrl = `/passenger/payment?${payQ.toString()}`;
-    router.prefetch(payUrl);
-
-    if (isMobile) {
-      setPaymentOpen(true);
-    } else {
-      router.push(payUrl);
-    }
-  };
-
   const dateLabel = formatTripDateLabel(travelDate);
 
-  const mobileBookingSheetOpen = summaryOpen || paymentOpen;
-  const step2Active = isMobile ? summaryOpen || paymentOpen : step === 'summary' || step === 'payment';
-  const step3Active = isMobile ? paymentOpen : step === 'payment';
+  const mobileBookingSheetOpen = paymentOpen;
+  const payStepActive = isMobile ? paymentOpen : loading;
 
   const mobileFullSheetClass = cn(
     'mt-0 flex h-[100dvh] max-h-[100dvh] flex-col rounded-none border-0 shadow-none ring-1 ring-border/60',
@@ -391,60 +389,6 @@ export default function BookingPage() {
       ? selectedSeat.base_price + platformFeeFromBps(selectedSeat.base_price, platformFeeBps)
       : null;
 
-  const summaryPanel = selectedSeat ? (
-    <div className="space-y-6">
-      {!profile ? (
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-lg">Your details</CardTitle>
-            <CardDescription>We&apos;ll use this for your ticket and payment confirmation.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="guest-full-name">Full name</Label>
-              <Input
-                id="guest-full-name"
-                name="guestFullName"
-                autoComplete="name"
-                value={guestFullName}
-                onChange={(e) => setGuestFullName(e.target.value)}
-                placeholder="As on your ID"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="guest-email">Email</Label>
-              <Input
-                id="guest-email"
-                name="guestEmail"
-                type="email"
-                autoComplete="email"
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-      {profile && existingBooking?.status === 'pending' ? (
-        <div className="flex justify-end">
-          <Button type="button" variant="outline" disabled={loading} onClick={() => void handleCancelBooking()}>
-            Cancel booking
-          </Button>
-        </div>
-      ) : null}
-      <BookingSummary
-        route={route}
-        selectedSeat={selectedSeat}
-        passengerName={displayName || '—'}
-        passengerEmail={displayEmail || '—'}
-        platformFeeBps={platformFeeBps}
-        onConfirm={handleConfirmBooking}
-        isLoading={loading}
-      />
-    </div>
-  ) : null;
-
   return (
     <div className="min-h-screen pb-24 md:pb-12 bg-linear-to-br from-background to-secondary/30">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -466,7 +410,11 @@ export default function BookingPage() {
           ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent font-bold text-accent-foreground">
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
+                  !payStepActive ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+                }`}
+              >
                 1
               </div>
               <span className="text-sm font-medium">Select seat</span>
@@ -477,25 +425,12 @@ export default function BookingPage() {
             <div className="flex min-w-0 items-center gap-2">
               <div
                 className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
-                  step2Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+                  payStepActive ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
                 }`}
               >
                 2
               </div>
-              <span className="text-sm font-medium">Review</span>
-            </div>
-
-            <div className="hidden h-px min-w-4 flex-1 bg-border sm:block" aria-hidden />
-
-            <div className="flex min-w-0 items-center gap-2">
-              <div
-                className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
-                  step3Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
-                }`}
-              >
-                3
-              </div>
-              <span className="text-sm font-medium">Payment</span>
+              <span className="text-sm font-medium">Pay</span>
             </div>
           </div>
         </div>
@@ -509,8 +444,7 @@ export default function BookingPage() {
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {(isMobile || step === 'seat') && (
-              <div className="space-y-6">
+            <div className="space-y-6">
                 <Card className="border-border">
                   <CardHeader>
                     <CardTitle className="text-2xl">
@@ -551,6 +485,42 @@ export default function BookingPage() {
                   </CardContent>
                 </Card>
 
+                {!profile ? (
+                  <Card className="border-border">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Your details</CardTitle>
+                      <CardDescription>
+                        We&apos;ll use this for your ticket and payment confirmation.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-full-name">Full name</Label>
+                        <Input
+                          id="guest-full-name"
+                          name="guestFullName"
+                          autoComplete="name"
+                          value={guestFullName}
+                          onChange={(e) => setGuestFullName(e.target.value)}
+                          placeholder="As on your ID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-email">Email</Label>
+                        <Input
+                          id="guest-email"
+                          name="guestEmail"
+                          type="email"
+                          autoComplete="email"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+
                 <SeatSelector
                   seats={route.available_seats}
                   bookedSeats={bookedSeatCodes}
@@ -561,27 +531,42 @@ export default function BookingPage() {
                   routeLabel={`${route.route.origin_city} → ${route.route.destination_city}`}
                 />
 
-                <div className="hidden md:flex gap-4">
+                {profile && existingBooking?.status === 'pending' ? (
+                  <div className="flex justify-end md:justify-start">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={loading}
+                      onClick={() => void handleCancelBooking()}
+                    >
+                      Cancel booking
+                    </Button>
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground md:max-w-xl">
+                  By continuing you create a pending booking and agree to AweTravel&apos;s terms. Payment is completed
+                  on the next step via our payment partner.
+                </p>
+
+                <div className="hidden md:flex flex-wrap gap-4">
                   <button
                     type="button"
                     onClick={() => router.back()}
-                    className="px-6 py-3 rounded-lg border border-border hover:bg-secondary/30 font-medium text-foreground transition"
+                    className="rounded-lg border border-border px-6 py-3 font-medium text-foreground transition hover:bg-secondary/30"
                   >
                     Back
                   </button>
                   <button
                     type="button"
-                    onClick={handleProceedToSummary}
-                    disabled={!selectedSeat}
-                    className="flex-1 px-6 py-3 rounded-lg bg-accent hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground font-medium text-accent-foreground transition"
+                    onClick={() => void handleProceedToPayment()}
+                    disabled={!selectedSeat || loading}
+                    className="min-w-48 flex-1 rounded-lg bg-accent px-6 py-3 font-medium text-accent-foreground transition hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground"
                   >
-                    Continue to Summary
+                    {loading ? 'Preparing payment…' : 'Continue to payment'}
                   </button>
                 </div>
-              </div>
-            )}
-
-            {!isMobile && step === 'summary' && summaryPanel}
+            </div>
           </div>
 
           <div className="hidden md:block">
@@ -658,29 +643,22 @@ export default function BookingPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleProceedToSummary}
-                  disabled={!selectedSeat}
+                  onClick={() => void handleProceedToPayment()}
+                  disabled={!selectedSeat || loading}
                   className="shrink-0 rounded-lg bg-accent px-5 py-3 font-medium text-accent-foreground transition hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground"
                 >
-                  Continue
+                  {loading ? 'Wait…' : 'Pay'}
                 </button>
               </div>
             </div>
           ) : null}
 
-          <Drawer
-            open={summaryOpen}
-            direction="bottom"
-            onOpenChange={(open) => {
-              setSummaryOpen(open);
-              if (!open) setPaymentOpen(false);
-            }}
-          >
+          <Drawer open={paymentOpen} direction="bottom" onOpenChange={setPaymentOpen}>
             <DrawerContent className={mobileFullSheetClass}>
               <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/70 bg-background px-4 pb-3 sm:px-5">
-                <DrawerHeader className="flex-1 space-y-1 p-0 text-left">
-                  <DrawerTitle className="text-lg">Review booking</DrawerTitle>
-                  <DrawerDescription>Confirm your details before paying.</DrawerDescription>
+                <DrawerHeader className="min-w-0 flex-1 space-y-1 p-0 text-left">
+                  <DrawerTitle className="text-lg">Payment</DrawerTitle>
+                  <DrawerDescription>Complete checkout with Paytota.</DrawerDescription>
                 </DrawerHeader>
                 <DrawerClose asChild>
                   <Button
@@ -702,52 +680,24 @@ export default function BookingPage() {
                     mobileSheetScrollPadding,
                   )}
                 >
-                  {error && !paymentOpen ? (
-                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
-                      <AlertCircle className="mt-0.5 size-5 shrink-0" />
-                      <p className="text-sm leading-snug">{error}</p>
-                    </div>
+                  {selectedSeat ? (
+                    <PaymentForm
+                      embedded
+                      tripId={tripId}
+                      seatId={selectedSeat.id}
+                      bookingId={paymentBookingId ?? undefined}
+                      platformFeeBps={platformFeeBps}
+                      totalAmount={
+                        selectedSeat.base_price + platformFeeFromBps(selectedSeat.base_price, platformFeeBps)
+                      }
+                      guestEmail={profile?.email?.trim() ? undefined : guestEmail.trim() || undefined}
+                      returnTripId={tripId}
+                      confirmationEmailHint={displayEmail || undefined}
+                      onCancel={() => setPaymentOpen(false)}
+                    />
                   ) : null}
-                  {summaryPanel}
                 </div>
               </div>
-
-              <DrawerNestedRoot open={paymentOpen} onOpenChange={setPaymentOpen}>
-                <DrawerContent className={cn(mobileFullSheetClass, 'z-60')}>
-                  <div className="flex shrink-0 items-start gap-3 border-b border-border/70 bg-background px-4 pb-3 sm:px-5">
-                    <DrawerHeader className="min-w-0 flex-1 space-y-1 p-0 text-left">
-                      <DrawerTitle className="text-lg">Payment</DrawerTitle>
-                      <DrawerDescription>Continue to Paytota to complete payment.</DrawerDescription>
-                    </DrawerHeader>
-                  </div>
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div
-                      className={cn(
-                        'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 sm:px-5',
-                        mobileSheetScrollPadding,
-                      )}
-                    >
-                      {selectedSeat ? (
-                        <PaymentForm
-                          embedded
-                          tripId={tripId}
-                          seatId={selectedSeat.id}
-                          bookingId={paymentBookingId ?? undefined}
-                          platformFeeBps={platformFeeBps}
-                          totalAmount={
-                            selectedSeat.base_price +
-                            platformFeeFromBps(selectedSeat.base_price, platformFeeBps)
-                          }
-                          guestEmail={profile?.email?.trim() ? undefined : guestEmail.trim() || undefined}
-                          returnTripId={tripId}
-                          confirmationEmailHint={displayEmail || undefined}
-                          onCancel={() => setPaymentOpen(false)}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                </DrawerContent>
-              </DrawerNestedRoot>
             </DrawerContent>
           </Drawer>
         </>

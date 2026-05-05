@@ -4,18 +4,11 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { platformFeeFromBps } from '@/lib/platform-settings/public-client';
 import { getServerPlatformFeeBps } from '@/lib/platform-settings/server';
 import { authorizeBookingCheckout } from '@/lib/payments/booking-checkout-access';
-import { createPaytotaPurchase, isPaytotaConfigured } from '@/lib/paytota';
+import { buildPaytotaRedirectUrl } from '@/lib/paytota-redirects';
+import { createPaytotaPurchase, getPaytotaMinPurchaseUgx, isPaytotaConfigured } from '@/lib/paytota';
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
-}
-
-function publicAppUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, '');
-  const vercel = process.env.VERCEL_URL?.trim();
-  if (vercel) return `https://${vercel.replace(/^https?:\/\//, '')}`;
-  return 'http://localhost:3000';
 }
 
 const postSchema = z.object({
@@ -67,6 +60,15 @@ export async function POST(request: NextRequest) {
   const ticketMinor = Math.round(booking.amount_minor);
   const totalMinor = ticketMinor + platformFeeFromBps(ticketMinor, feeBps);
 
+  const currency = (booking.currency || 'UGX').toUpperCase();
+  const minUgx = getPaytotaMinPurchaseUgx();
+  if (currency === 'UGX' && minUgx > 0 && totalMinor < minUgx) {
+    return jsonError(
+      `Checkout amount is below the Paytota minimum (${minUgx} UGX). Adjust PAYTOTA_MIN_PURCHASE_UGX or pricing.`,
+      400,
+    );
+  }
+
   const email =
     booking.passenger_user_id && user?.email
       ? user.email.trim()
@@ -82,19 +84,29 @@ export async function POST(request: NextRequest) {
 
   const phone = booking.guest_phone?.trim() || undefined;
 
-  const base = publicAppUrl();
-  const tripQ = returnTripId ? `&tripId=${encodeURIComponent(returnTripId)}` : '';
-  const guestQ =
-    !booking.passenger_user_id && email
-      ? `&guestEmail=${encodeURIComponent(email)}`
-      : '';
-  const successRedirect = `${base}/passenger/payment/return?bookingId=${encodeURIComponent(booking.id)}&status=success${tripQ}${guestQ}`;
-  const failureRedirect = `${base}/passenger/payment/return?bookingId=${encodeURIComponent(booking.id)}&status=failure${tripQ}${guestQ}`;
+  const returnQuery: Record<string, string> = {
+    bookingId: booking.id,
+  };
+  if (returnTripId) returnQuery.tripId = returnTripId;
+  if (!booking.passenger_user_id && email) returnQuery.guestEmail = email;
+
+  const successRedirect = buildPaytotaRedirectUrl(process.env.PAYTOTA_SUCCESS_REDIRECT, {
+    ...returnQuery,
+    status: 'success',
+  });
+  const failureRedirect = buildPaytotaRedirectUrl(process.env.PAYTOTA_FAILURE_REDIRECT, {
+    ...returnQuery,
+    status: 'failure',
+  });
+  const cancelRedirect = buildPaytotaRedirectUrl(process.env.PAYTOTA_CANCEL_REDIRECT ?? process.env.PAYTOTA_FAILURE_REDIRECT, {
+    ...returnQuery,
+    status: 'cancelled',
+  });
 
   const created = await createPaytotaPurchase({
     bookingId: booking.id,
     amountMinor: totalMinor,
-    currency: booking.currency || 'UGX',
+    currency,
     client: {
       email,
       full_name: fullName,
@@ -103,7 +115,7 @@ export async function POST(request: NextRequest) {
     },
     successRedirect,
     failureRedirect,
-    cancelRedirect: failureRedirect,
+    cancelRedirect,
   });
 
   if (!created.ok) {

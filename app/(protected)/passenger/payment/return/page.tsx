@@ -20,7 +20,7 @@ function ReturnContent() {
   const guestEmail = searchParams.get('guestEmail') || '';
 
   const [message, setMessage] = useState('Checking payment status…');
-  const [failed, setFailed] = useState(statusParam === 'failure');
+  const [failed, setFailed] = useState(statusParam === 'failure' || statusParam === 'cancelled');
   const polls = useRef(0);
 
   useEffect(() => {
@@ -30,9 +30,13 @@ function ReturnContent() {
       return;
     }
 
-    if (statusParam === 'failure') {
+    if (statusParam === 'failure' || statusParam === 'cancelled') {
       setFailed(true);
-      setMessage('Payment was not completed. You can try again from your booking.');
+      setMessage(
+        statusParam === 'cancelled'
+          ? 'Checkout was cancelled. You can try again when you are ready.'
+          : 'Payment was not completed. You can try again from your booking.',
+      );
       return;
     }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import type { PlatformTransactionStatus } from '@/lib/admin/transactions/types';
-import { verifyPaytotaWebhookSignature } from '@/lib/paytota-webhook';
+import { getPaytotaWebhookSignatureFromHeaders, verifyPaytotaWebhookSignature } from '@/lib/paytota-webhook';
 
 function toAmountMinor(raw: unknown): number | null {
   const n = Math.round(Number(raw));
@@ -225,7 +225,7 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const publicKey = process.env.PAYTOTA_WEBHOOK_PUBLIC_KEY?.trim();
-  const signature = request.headers.get('x-signature')?.trim();
+  const signature = getPaytotaWebhookSignatureFromHeaders(request.headers);
 
   if (publicKey) {
     if (!signature) {
