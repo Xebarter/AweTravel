@@ -10,7 +10,10 @@ async function readError(res: Response): Promise<string> {
 }
 
 export type RouteCreatePayload = Omit<Route, 'id' | 'createdAt' | 'updatedAt'>;
-export type RouteUpdatePayload = Partial<RouteCreatePayload>;
+/** PATCH accepts clearing `notes` with `null` (see `routePayloadToUpdate`). */
+export type RouteUpdatePayload = Partial<Omit<RouteCreatePayload, 'notes'>> & {
+  notes?: string | null;
+};
 
 export async function listTransporterRoutes(): Promise<Route[]> {
   const res = await fetch('/api/transporter/routes');

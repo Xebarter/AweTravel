@@ -8,8 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Trash2, RefreshCw, Search, Route as RouteIcon } from 'lucide-react';
-import { DepartureDialog, type DeparturePayload, type ExistingDeparture } from '@/components/transporter/DepartureDialog';
-import { listTransporterRoutes } from '@/lib/transporter-routes/client';
+import {
+  DepartureDialog,
+  type DeparturePayload,
+  type ExistingDeparture,
+  type RouteFieldsPatch,
+} from '@/components/transporter/DepartureDialog';
+import { listTransporterRoutes, updateTransporterRoute } from '@/lib/transporter-routes/client';
 import { listTransporterVehicles } from '@/lib/transporter-vehicles/client';
 import type { Route } from '@/types/transporter-route';
 import type { Vehicle } from '@/types/transporter-vehicle';
@@ -22,7 +27,12 @@ type DepartureRow = {
   days_of_week: number;
   status: 'active' | 'paused';
   vehicle_id: string | null;
+  price_override_minor?: number | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
   route?: { route_code: string; origin: string; destination: string };
+  vehicle?: { registration: string | null; vehicle_type: string | null; capacity?: number | null } | null;
 };
 
 function describeMask(mask: number): string {
@@ -63,6 +73,7 @@ export default function SchedulesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ExistingDeparture | null>(null);
+  const [editLoadingId, setEditLoadingId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -129,22 +140,63 @@ export default function SchedulesPage() {
   };
 
   const openEdit = (row: DepartureRow) => {
-    setEditing({
-      id: row.id,
-      routeId: row.route_id,
-      vehicleId: row.vehicle_id ?? null,
-      departureTime: row.departure_time,
-      daysOfWeek: row.days_of_week,
-      status: row.status,
-      priceOverrideMinor: null,
-      notes: null,
-    });
-    setDialogOpen(true);
+    void (async () => {
+      setEditLoadingId(row.id);
+      try {
+        const res = await fetch(`/api/transporter/departures/${row.id}`);
+        if (!res.ok) throw new Error(await readError(res));
+        const j = (await res.json()) as {
+          departure: {
+            id: string;
+            route_id: string;
+            vehicle_id: string | null;
+            departure_time: string;
+            days_of_week: number;
+            status: 'active' | 'paused';
+            price_override_minor: number | null;
+            notes: string | null;
+            created_at?: string;
+            updated_at?: string;
+          };
+        };
+        const d = j.departure;
+        const time =
+          d.departure_time.length > 5 ? d.departure_time.slice(0, 5) : d.departure_time;
+        setEditing({
+          id: d.id,
+          routeId: d.route_id,
+          vehicleId: d.vehicle_id ?? null,
+          departureTime: time,
+          daysOfWeek: d.days_of_week,
+          status: d.status,
+          priceOverrideMinor: d.price_override_minor ?? null,
+          notes: d.notes ?? null,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        });
+        setDialogOpen(true);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setEditLoadingId(null);
+      }
+    })();
   };
 
-  const submitDeparture = async (payload: DeparturePayload, id?: string) => {
+  const submitDeparture = async (
+    payload: DeparturePayload,
+    id?: string,
+    routePatch?: RouteFieldsPatch | null,
+  ) => {
+    if (routePatch) {
+      await updateTransporterRoute(payload.routeId, {
+        basePriceMinor: routePatch.basePriceMinor,
+        passengerSeatingCapacity: routePatch.passengerSeatingCapacity,
+      });
+    }
     const body = id
       ? {
+          routeId: payload.routeId,
           vehicleId: payload.vehicleId,
           departureTime: payload.departureTime,
           daysOfWeek: payload.daysOfWeek,
@@ -366,10 +418,11 @@ export default function SchedulesPage() {
                             variant="secondary"
                             size="sm"
                             className="min-h-11 flex-1 touch-manipulation shadow-sm sm:min-h-10"
+                            disabled={editLoadingId === schedule.id}
                             onClick={() => openEdit(schedule)}
                           >
                             <Edit className="h-4 w-4 shrink-0" aria-hidden />
-                            Edit
+                            {editLoadingId === schedule.id ? 'Opening…' : 'Edit'}
                           </Button>
                           <Button
                             variant="outline"
@@ -472,10 +525,11 @@ export default function SchedulesPage() {
                               variant="outline"
                               size="sm"
                               className="h-9 gap-2"
+                              disabled={editLoadingId === schedule.id}
                               onClick={() => openEdit(schedule)}
                             >
                               <Edit className="h-4 w-4" aria-hidden />
-                              Edit
+                              {editLoadingId === schedule.id ? 'Opening…' : 'Edit'}
                             </Button>
                             <Button
                               variant="outline"

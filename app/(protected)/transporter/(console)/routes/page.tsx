@@ -54,6 +54,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { AddRouteDialog } from '@/components/transporter/AddRouteDialog';
+import { EditRouteDialog } from '@/components/transporter/EditRouteDialog';
 import { RouteHomeAdDialog } from '@/components/transporter/RouteHomeAdDialog';
 import {
   createTransporterRoute,
@@ -144,6 +145,7 @@ export default function RoutesPage() {
   const [pageSize, setPageSize] = useState(25);
   const [homeAdOpen, setHomeAdOpen] = useState(false);
   const [homeAdRoute, setHomeAdRoute] = useState<Route | null>(null);
+  const [editRouteId, setEditRouteId] = useState<string | null>(null);
   const [homeAdApplications, setHomeAdApplications] = useState<
     Awaited<ReturnType<typeof listRouteHomeAdApplications>>
   >([]);
@@ -317,12 +319,21 @@ export default function RoutesPage() {
 
   const routeToDelete = deleteId ? routes.find((r) => r.id === deleteId) : undefined;
   const existingCodes = useMemo(() => routes.map((r) => r.routeCode), [routes]);
+  const editOtherCodes = useMemo(
+    () => routes.filter((r) => r.id !== editRouteId).map((r) => r.routeCode),
+    [routes, editRouteId],
+  );
 
   const handleCreate = async (payload: Parameters<typeof createTransporterRoute>[0]) => {
     setActionError(null);
     const created = await createTransporterRoute(payload);
     setRoutes((prev) => [created, ...prev]);
     setPage(1);
+  };
+
+  const handleRouteSaved = (updated: Route) => {
+    setActionError(null);
+    setRoutes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
 
   const handleDelete = async () => {
@@ -757,18 +768,15 @@ export default function RoutesPage() {
                                   </Link>
                                 </Button>
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="icon"
                                   className="h-9 w-full touch-manipulation"
-                                  asChild
+                                  aria-label={`Edit ${route.routeCode}`}
+                                  title="Edit"
+                                  onClick={() => setEditRouteId(route.id)}
                                 >
-                                  <Link
-                                    href={`/transporter/routes/${route.id}/edit`}
-                                    aria-label={`Edit ${route.routeCode}`}
-                                    title="Edit"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Link>
+                                  <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   type="button"
@@ -981,18 +989,15 @@ export default function RoutesPage() {
                                         </Link>
                                       </Button>
                                       <Button
+                                        type="button"
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7"
-                                        asChild
+                                        aria-label={`Edit ${route.routeCode}`}
+                                        title="Edit"
+                                        onClick={() => setEditRouteId(route.id)}
                                       >
-                                        <Link
-                                          href={`/transporter/routes/${route.id}/edit`}
-                                          aria-label={`Edit ${route.routeCode}`}
-                                          title="Edit"
-                                        >
-                                          <Edit className="h-3.5 w-3.5" />
-                                        </Link>
+                                        <Edit className="h-3.5 w-3.5" />
                                       </Button>
                                       <Button
                                         type="button"
@@ -1103,6 +1108,17 @@ export default function RoutesPage() {
         existingCodes={existingCodes}
         vehicles={vehicles}
         onCreate={handleCreate}
+      />
+
+      <EditRouteDialog
+        open={editRouteId !== null}
+        onOpenChange={(o) => {
+          if (!o) setEditRouteId(null);
+        }}
+        routeId={editRouteId}
+        otherRouteCodes={editOtherCodes}
+        vehicles={vehicles}
+        onSaved={handleRouteSaved}
       />
 
       <RouteHomeAdDialog

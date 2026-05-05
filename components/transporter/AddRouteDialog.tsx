@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChangeEvent, ComponentType, ReactNode } from 'react';
+import type { ChangeEvent } from 'react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Bus,
@@ -36,11 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  ALL_DAYS_MASK,
-  DAYS_OF_WEEK,
   ROUTE_STATUS_OPTIONS,
-  WEEKDAYS_MASK,
-  WEEKEND_MASK,
   suggestRouteCode,
   type DepartureStatus,
   type Route,
@@ -56,24 +52,16 @@ import {
 } from '@/types/transporter-vehicle';
 import { APP_CURRENCY_CODE } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+import {
+  newDepartureRow,
+  newRouteFormKey,
+  RouteDialogDaysToggle,
+  RouteDialogSectionTitle,
+  type DepartureRow,
+  type StopRow,
+} from '@/components/transporter/route-dialog-shared';
 
 export type NewRoutePayload = Omit<Route, 'id' | 'createdAt' | 'updatedAt'>;
-
-type StopRow = {
-  key: string;
-  name: string;
-  etaOffsetMinutes: string;
-};
-
-type DepartureRow = {
-  key: string;
-  departureTime: string;
-  daysOfWeek: number;
-  vehicleId: string;
-  status: DepartureStatus;
-  priceOverride: string;
-  notes: string;
-};
 
 type FormState = {
   routeCode: string;
@@ -90,22 +78,6 @@ type FormState = {
   departures: DepartureRow[];
 };
 
-let rowCounter = 0;
-const newKey = (prefix: string) => {
-  rowCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}-${rowCounter}`;
-};
-
-const newDeparture = (): DepartureRow => ({
-  key: newKey('dep'),
-  departureTime: '08:00',
-  daysOfWeek: WEEKDAYS_MASK,
-  vehicleId: '',
-  status: 'active',
-  priceOverride: '',
-  notes: '',
-});
-
 const emptyForm = (): FormState => ({
   routeCode: '',
   origin: '',
@@ -118,94 +90,8 @@ const emptyForm = (): FormState => ({
   status: 'active',
   notes: '',
   stops: [],
-  departures: [newDeparture()],
+  departures: [newDepartureRow()],
 });
-
-function SectionTitle({
-  icon: Icon,
-  children,
-  hint,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  children: ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        <Icon className="h-3.5 w-3.5 opacity-80" aria-hidden />
-        {children}
-      </div>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
-  );
-}
-
-function DaysToggle({
-  mask,
-  onChange,
-  idPrefix,
-}: {
-  mask: number;
-  onChange: (mask: number) => void;
-  idPrefix: string;
-}) {
-  const toggle = (bit: number) => onChange(mask ^ bit);
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {DAYS_OF_WEEK.map((d) => {
-        const bit = 1 << d.index;
-        const active = (mask & bit) !== 0;
-        return (
-          <button
-            key={d.index}
-            id={`${idPrefix}-day-${d.index}`}
-            type="button"
-            onClick={() => toggle(bit)}
-            aria-pressed={active}
-            className={cn(
-              'h-9 min-w-11 rounded-md border px-2 text-xs font-semibold uppercase tracking-wide transition-colors',
-              active
-                ? 'border-accent bg-accent text-accent-foreground shadow-sm'
-                : 'border-border bg-card text-muted-foreground hover:border-accent/50 hover:text-foreground',
-            )}
-          >
-            {d.short.slice(0, 1)}
-          </button>
-        );
-      })}
-      <div className="ml-1 flex flex-wrap gap-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onClick={() => onChange(WEEKDAYS_MASK)}
-        >
-          Weekdays
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onClick={() => onChange(WEEKEND_MASK)}
-        >
-          Weekends
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onClick={() => onChange(ALL_DAYS_MASK)}
-        >
-          Every day
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 type AddRouteDialogProps = {
   open: boolean;
@@ -366,7 +252,7 @@ export function AddRouteDialog({
       ...f,
       stops: [
         ...f.stops,
-        { key: newKey('stop'), name: '', etaOffsetMinutes: '' },
+        { key: newRouteFormKey('stop'), name: '', etaOffsetMinutes: '' },
       ],
     }));
 
@@ -380,7 +266,7 @@ export function AddRouteDialog({
     }));
 
   const addDeparture = () =>
-    setForm((f) => ({ ...f, departures: [...f.departures, newDeparture()] }));
+    setForm((f) => ({ ...f, departures: [...f.departures, newDepartureRow()] }));
 
   const removeDeparture = (key: string) =>
     setForm((f) => ({
@@ -536,7 +422,7 @@ export function AddRouteDialog({
             <div className="space-y-6">
               {/* Identity */}
               <div className="space-y-4">
-                <SectionTitle icon={ClipboardList}>Identity</SectionTitle>
+                <RouteDialogSectionTitle icon={ClipboardList}>Identity</RouteDialogSectionTitle>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor={`${formId}-origin`}>
@@ -571,7 +457,7 @@ export function AddRouteDialog({
 
               {/* Path */}
               <div className="space-y-4">
-                <SectionTitle icon={MapIcon}>Path & pricing</SectionTitle>
+                <RouteDialogSectionTitle icon={MapIcon}>Path & pricing</RouteDialogSectionTitle>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor={`${formId}-class`}>Vehicle class</Label>
@@ -709,9 +595,9 @@ export function AddRouteDialog({
 
               {/* Stops */}
               <div className="space-y-4">
-                <SectionTitle icon={MapPin} hint="Optional intermediate stops in order">
+                <RouteDialogSectionTitle icon={MapPin} hint="Optional intermediate stops in order">
                   Stops along the way
-                </SectionTitle>
+                </RouteDialogSectionTitle>
                 {form.stops.length === 0 ? (
                   <p className="rounded-md border border-dashed border-border/80 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
                     No intermediate stops. Buses go straight from{' '}
@@ -781,12 +667,12 @@ export function AddRouteDialog({
 
               {/* Departures */}
               <div className="space-y-4">
-                <SectionTitle
+                <RouteDialogSectionTitle
                   icon={Clock}
                   hint="Each departure is a bus running at a specific time"
                 >
                   Departures
-                </SectionTitle>
+                </RouteDialogSectionTitle>
                 {activeVehicles.length === 0 && (
                   <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
                     You don&apos;t have any active vehicles in your fleet yet. You can still
@@ -865,7 +751,7 @@ export function AddRouteDialog({
                           <CalendarDays className="h-3.5 w-3.5 opacity-70" aria-hidden />
                           Days of the week <span className="text-destructive">*</span>
                         </Label>
-                        <DaysToggle
+                        <RouteDialogDaysToggle
                           mask={d.daysOfWeek}
                           onChange={(m) => updateDeparture(d.key, { daysOfWeek: m })}
                           idPrefix={`${formId}-${d.key}`}
@@ -931,7 +817,7 @@ export function AddRouteDialog({
 
               {/* Notes */}
               <div className="space-y-2">
-                <SectionTitle icon={FileText}>Internal notes</SectionTitle>
+                <RouteDialogSectionTitle icon={FileText}>Internal notes</RouteDialogSectionTitle>
                 <Textarea
                   id={`${formId}-notes`}
                   placeholder="Driver briefings, stopover details, livery notes…"
@@ -946,9 +832,9 @@ export function AddRouteDialog({
 
               {/* Route code (auto-generated, shown last) */}
               <div className="space-y-2">
-                <SectionTitle icon={ClipboardList} hint="Auto-generated">
+                <RouteDialogSectionTitle icon={ClipboardList} hint="Auto-generated">
                   Route code
-                </SectionTitle>
+                </RouteDialogSectionTitle>
                 <div className="space-y-2">
                   <Label htmlFor={`${formId}-code`}>
                     Route code <span className="text-destructive">*</span>

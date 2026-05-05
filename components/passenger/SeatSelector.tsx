@@ -12,6 +12,7 @@ interface SeatSelectorProps {
   bookedSeats?: string[];
   onSelect: (seat: Seat) => void;
   vehicleType: RouteType;
+  passengerCapacity?: number;
   registration?: string;
   routeLabel?: string;
 }
@@ -21,6 +22,7 @@ export function SeatSelector({
   bookedSeats = [],
   onSelect,
   vehicleType,
+  passengerCapacity,
   registration,
   routeLabel,
 }: SeatSelectorProps) {
@@ -64,6 +66,7 @@ export function SeatSelector({
             selectedSeatId={selectedSeat?.id ?? null}
             onSeatSelect={handleSeatClick}
             vehicleType={vehicleType}
+            passengerCapacity={passengerCapacity}
             registration={registration}
             routeLabel={routeLabel}
           />

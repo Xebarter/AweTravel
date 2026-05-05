@@ -427,6 +427,7 @@ export default function BookingPage() {
                   bookedSeats={bookedSeatCodes}
                   onSelect={handleSeatSelect}
                   vehicleType={route.vehicle.vehicle_type}
+                  passengerCapacity={route.total_seats}
                   registration={route.vehicle.vehicle_registration}
                   routeLabel={`${route.route.origin_city} → ${route.route.destination_city}`}
                 />

@@ -29,7 +29,7 @@ const SELECT = `
   created_at,
   updated_at,
   route:transporter_routes!inner(route_code, origin, destination, owner_user_id),
-  vehicle:transporter_vehicles(registration, vehicle_type)
+  vehicle:transporter_vehicles(registration, vehicle_type, capacity)
 `;
 
 /**

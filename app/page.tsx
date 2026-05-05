@@ -327,7 +327,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user && router.prefetch) {
-      router.prefetch(getHomePathForProfile(profile));
+      router.prefetch(getHomePathForProfile(profile, user));
     }
   }, [user, profile, router]);
 

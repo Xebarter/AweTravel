@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/currency';
 import {
   buildCoachSeatLayoutFromSeats,
+  coachLayoutSides,
   normalizeSeatCode,
   vehicleSchematicMetrics,
 } from '@/lib/vehicle-seat-layout';
@@ -17,6 +18,8 @@ export type VehicleSeatMapProps = {
   selectedSeatId: string | null;
   onSeatSelect: (seat: Seat) => void;
   vehicleType: RouteType;
+  /** Vehicle passenger capacity (drives 1+2 vs 2+3 schematic). Defaults to seats.length. */
+  passengerCapacity?: number;
   registration?: string;
   routeLabel?: string;
 };
@@ -38,10 +41,16 @@ export function VehicleSeatMap({
   selectedSeatId,
   onSeatSelect,
   vehicleType,
+  passengerCapacity,
   registration,
   routeLabel,
 }: VehicleSeatMapProps) {
-  const rows = buildCoachSeatLayoutFromSeats(seats);
+  const cap = passengerCapacity ?? seats.length;
+  const rows = buildCoachSeatLayoutFromSeats(seats, cap);
+  const gridTemplate =
+    coachLayoutSides(cap).left === 1
+      ? 'grid-cols-[1fr_0.42fr_1fr_1fr]'
+      : 'grid-cols-[1fr_1fr_0.42fr_1fr_1fr_1fr]';
   const bookedSet = new Set(bookedSeatCodes.map(normalizeSeatCode));
   const { bodyWidth, cornerRadius, windshieldDepth } = vehicleSchematicMetrics(vehicleType);
 
@@ -125,7 +134,7 @@ export function VehicleSeatMap({
             {rows.map((row, ri) => (
               <div
                 key={ri}
-                className="grid w-full grid-cols-[1fr_1fr_0.42fr_1fr_1fr] gap-1 sm:gap-1.5"
+                className={cn('grid w-full gap-1 sm:gap-1.5', gridTemplate)}
               >
                 {row.map((cell, ci) => {
                   if (cell.kind === 'spacer') {

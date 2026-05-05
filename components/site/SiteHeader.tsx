@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { getHomePathForProfile } from '@/lib/post-auth-redirect';
@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import { Menu, X } from 'lucide-react';
 
 export function SiteHeader() {
-  const router = useRouter();
   const pathname = usePathname();
   const { user, profile, isLoading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -75,8 +74,8 @@ export function SiteHeader() {
             {isLoading ? (
               <div className="h-9 w-24 animate-pulse rounded-md bg-muted" aria-hidden />
             ) : user ? (
-              <Button type="button" onClick={() => router.push(getHomePathForProfile(profile))}>
-                Dashboard
+              <Button type="button" asChild>
+                <Link href={getHomePathForProfile(profile, user)}>Dashboard</Link>
               </Button>
             ) : (
               <>
@@ -158,15 +157,13 @@ export function SiteHeader() {
                 {isLoading ? (
                   <div className="h-11 w-full animate-pulse rounded-md bg-muted" aria-hidden />
                 ) : user ? (
-                  <Button
-                    type="button"
-                    className="h-11 w-full font-semibold"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      router.push(getHomePathForProfile(profile));
-                    }}
-                  >
-                    Dashboard
+                  <Button type="button" className="h-11 w-full font-semibold" asChild>
+                    <Link
+                      href={getHomePathForProfile(profile, user)}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
                   </Button>
                 ) : (
                   <>

@@ -6,6 +6,7 @@ import { requireTransporterSession } from '@/lib/transporter-vehicles/auth';
 const uuidSchema = z.string().uuid();
 const patchSchema = z
   .object({
+    routeId: uuidSchema.optional(),
     vehicleId: z.union([uuidSchema, z.null()]).optional(),
     departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM (24-hour)').optional(),
     daysOfWeek: z.number().int().min(1).max(127).optional(),
@@ -27,11 +28,48 @@ const SELECT = `
   created_at,
   updated_at,
   route:transporter_routes!inner(route_code, origin, destination, owner_user_id),
-  vehicle:transporter_vehicles(registration, vehicle_type)
+  vehicle:transporter_vehicles(registration, vehicle_type, capacity)
 `;
 
 const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type Params = { params: Promise<{ id: string }> };
+
+function trimDepartureTime(t: string): string {
+  if (!t) return t;
+  return /^\d{2}:\d{2}$/.test(t) ? t : t.slice(0, 5);
+}
+
+/**
+ * GET /api/transporter/departures/[id] — one schedule (ownership via route).
+ */
+export async function GET(request: NextRequest, { params }: Params) {
+  const { id } = await params;
+  if (!uuidRe.test(id)) return NextResponse.json({ error: 'Invalid departure id' }, { status: 400 });
+
+  const supabase = await createSupabaseRouteClient();
+  if (!supabase) return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+
+  const auth = await requireTransporterSession(supabase);
+  if ('response' in auth) return auth.response;
+
+  const { data, error } = await supabase
+    .from('transporter_route_departures')
+    .select(SELECT)
+    .eq('id', id)
+    .eq('route.owner_user_id', auth.userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('departure get:', error);
+    return NextResponse.json({ error: 'Failed to load schedule' }, { status: 500 });
+  }
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const dep = data as { departure_time: string };
+  return NextResponse.json({
+    departure: { ...dep, departure_time: trimDepartureTime(dep.departure_time) },
+  });
+}
 
 /**
  * PATCH /api/transporter/departures/[id]
@@ -75,6 +113,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  if (parsed.data.routeId !== undefined) {
+    const { data: rte, error: rteErr } = await supabase
+      .from('transporter_routes')
+      .select('id')
+      .eq('id', parsed.data.routeId)
+      .eq('owner_user_id', auth.userId)
+      .maybeSingle();
+    if (rteErr) {
+      console.error('departure patch route check:', rteErr);
+      return NextResponse.json({ error: 'Failed to update schedule' }, { status: 500 });
+    }
+    if (!rte) return NextResponse.json({ error: 'Route not found' }, { status: 404 });
+  }
+
   if ('vehicleId' in parsed.data && parsed.data.vehicleId) {
     const { data: vehicle, error: vErr } = await supabase
       .from('transporter_vehicles')
@@ -90,6 +142,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const updateRow: Record<string, unknown> = {};
+  if (parsed.data.routeId !== undefined) updateRow.route_id = parsed.data.routeId;
   if ('vehicleId' in parsed.data) updateRow.vehicle_id = parsed.data.vehicleId ?? null;
   if (parsed.data.departureTime !== undefined) updateRow.departure_time = parsed.data.departureTime;
   if (parsed.data.daysOfWeek !== undefined) updateRow.days_of_week = parsed.data.daysOfWeek;

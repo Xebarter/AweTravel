@@ -18,7 +18,7 @@ function isPassengerNavActive(href: string, pathname: string): boolean {
 }
 
 export function Header() {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -60,7 +60,7 @@ export function Header() {
   }, [showProfileMenu]);
 
   const getDashboardUrl = () => {
-    return getHomePathForProfile(profile);
+    return getHomePathForProfile(profile, user);
   };
 
   const getNavLinks = () => {
