@@ -370,18 +370,20 @@ export default function TransporterDashboard() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">Payments</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {metricsLoading ? (
                         <span className="inline-flex items-center gap-2">
                           <Skeleton className="h-4 w-20" /> processed this week.
                         </span>
                       ) : (
-                        <>
+                        <span>
                           {weeklyRevenue ?? '—'} processed this week.{' '}
-                          {metrics?.pendingPayouts ? `${metrics.pendingPayouts} payout(s) pending.` : 'No payouts pending.'}
-                        </>
+                          {metrics?.pendingPayouts
+                            ? `${metrics.pendingPayouts} payout(s) pending.`
+                            : 'No payouts pending.'}
+                        </span>
                       )}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>

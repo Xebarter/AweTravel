@@ -219,7 +219,8 @@ export function AddRouteDialog({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [codeTouched, setCodeTouched] = useState(false);
+  const [distanceTouched, setDistanceTouched] = useState(false);
+  const [durationTouched, setDurationTouched] = useState(false);
 
   const codeSet = useMemo(
     () => new Set(existingCodes.map((c) => c.trim().toUpperCase()).filter(Boolean)),
@@ -231,12 +232,112 @@ export function AddRouteDialog({
     [vehicles],
   );
 
-  // Auto-suggest a route code from origin/destination until the user types one.
+  const distanceAutoFillEnabled = useMemo(() => {
+    return !distanceTouched && form.distanceKm.trim() === '';
+  }, [distanceTouched, form.distanceKm]);
+
+  const durationAutoFillEnabled = useMemo(() => {
+    return !durationTouched && form.durationMinutes.trim() === '';
+  }, [durationTouched, form.durationMinutes]);
+
+  const haversineKm = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const s =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+    return R * c;
+  };
+
+  const geocodePlace = async (name: string, signal?: AbortSignal) => {
+    const q = name.trim();
+    if (!q) return null;
+    // Free, no-key geocoding that supports browser CORS.
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { results?: Array<{ latitude: number; longitude: number }> };
+    const hit = j.results?.[0];
+    if (!hit) return null;
+    return { lat: hit.latitude, lon: hit.longitude };
+  };
+
+  // Auto-fill distance once origin+destination are provided (keeps field editable).
   useEffect(() => {
-    if (codeTouched) return;
-    const suggested = suggestRouteCode(form.origin, form.destination, codeSet.size + 1);
-    setForm((f) => (f.routeCode === suggested ? f : { ...f, routeCode: suggested }));
-  }, [form.origin, form.destination, codeSet.size, codeTouched]);
+    if (!open) return;
+    if (!distanceAutoFillEnabled) return;
+    const origin = form.origin.trim();
+    const destination = form.destination.trim();
+    if (!origin || !destination) return;
+    if (origin.toLowerCase() === destination.toLowerCase()) return;
+
+    const controller = new AbortController();
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const [a, b] = await Promise.all([
+            geocodePlace(origin, controller.signal),
+            geocodePlace(destination, controller.signal),
+          ]);
+          if (!a || !b) return;
+          const km = haversineKm(a, b);
+          if (!Number.isFinite(km) || km <= 0) return;
+          const rounded = Math.round(km * 10) / 10;
+          setForm((f) => (f.distanceKm.trim() === '' ? { ...f, distanceKm: String(rounded) } : f));
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') return;
+          // Silent fail: manual entry remains available.
+        }
+      })();
+    }, 450);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(handle);
+    };
+  }, [open, form.origin, form.destination, distanceAutoFillEnabled]);
+
+  // Auto-fill duration (in hours) once we have a distance estimate.
+  useEffect(() => {
+    if (!open) return;
+    if (!durationAutoFillEnabled) return;
+    const km = Number.parseFloat(form.distanceKm);
+    if (!Number.isFinite(km) || km <= 0) return;
+
+    // Conservative default speed for mixed highway/city routes.
+    const assumedKmPerHour = 60;
+    const rawHours = km / assumedKmPerHour;
+    if (!Number.isFinite(rawHours) || rawHours <= 0) return;
+
+    // Round to the nearest 0.25h (15 minutes) for friendly display.
+    const rounded = Math.max(0.25, Math.round(rawHours * 4) / 4);
+    setForm((f) => (f.durationMinutes.trim() === '' ? { ...f, durationMinutes: String(rounded) } : f));
+  }, [open, form.distanceKm, durationAutoFillEnabled]);
+
+  const generateUniqueCode = (origin: string, destination: string) => {
+    // `suggestRouteCode` returns a readable code; we ensure uniqueness.
+    for (let n = codeSet.size + 1; n < codeSet.size + 250; n += 1) {
+      const suggested = suggestRouteCode(origin, destination, n).trim().toUpperCase();
+      if (suggested && !codeSet.has(suggested)) return suggested;
+    }
+    return suggestRouteCode(origin, destination, Date.now() % 1000).trim().toUpperCase();
+  };
+
+  // Auto-generate a route code from origin/destination.
+  useEffect(() => {
+    if (!open) return;
+    setForm((f) => {
+      const next = generateUniqueCode(f.origin, f.destination);
+      return f.routeCode === next ? f : { ...f, routeCode: next };
+    });
+    // We intentionally depend on `codeSet` so codes stay unique as the list grows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.origin, form.destination, codeSet]);
 
   const setField =
     <K extends keyof FormState>(key: K) =>
@@ -292,7 +393,7 @@ export function AddRouteDialog({
 
     const routeCode = form.routeCode.trim().toUpperCase();
     if (!routeCode || routeCode.length < 2) {
-      setSubmitError('Enter a route code (at least 2 characters).');
+      setSubmitError('Route code could not be generated. Please update origin/destination and try again.');
       return;
     }
     if (codeSet.has(routeCode)) {
@@ -311,10 +412,11 @@ export function AddRouteDialog({
     if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
       return setSubmitError('Enter a valid distance greater than zero.');
     }
-    const durationMinutes = Number.parseInt(form.durationMinutes, 10);
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-      return setSubmitError('Enter a valid duration in minutes.');
+    const durationHours = Number.parseFloat(form.durationMinutes);
+    if (!Number.isFinite(durationHours) || durationHours <= 0) {
+      return setSubmitError('Enter a valid duration in hours.');
     }
+    const durationMinutes = Math.round(durationHours * 60);
     const basePrice = form.basePrice.trim() === '' ? 0 : Number.parseInt(form.basePrice, 10);
     if (!Number.isFinite(basePrice) || basePrice < 0) {
       return setSubmitError('Base price must be zero or greater.');
@@ -386,7 +488,8 @@ export function AddRouteDialog({
       await onCreate(payload);
       onOpenChange(false);
       setForm(emptyForm());
-      setCodeTouched(false);
+      setDistanceTouched(false);
+      setDurationTouched(false);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Could not save route.');
     } finally {
@@ -422,26 +525,6 @@ export function AddRouteDialog({
               <div className="space-y-4">
                 <SectionTitle icon={ClipboardList}>Identity</SectionTitle>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor={`${formId}-code`}>
-                      Route code <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id={`${formId}-code`}
-                      required
-                      autoComplete="off"
-                      placeholder="e.g. KAJI-001"
-                      className="font-mono uppercase"
-                      value={form.routeCode}
-                      onChange={(e) => {
-                        setCodeTouched(true);
-                        setForm((f) => ({ ...f, routeCode: e.target.value }));
-                      }}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Auto-suggested from origin/destination. Edit to use your own code.
-                    </p>
-                  </div>
                   <div className="space-y-2">
                     <Label htmlFor={`${formId}-origin`}>
                       Origin <span className="text-destructive">*</span>
@@ -528,23 +611,34 @@ export function AddRouteDialog({
                       required
                       placeholder="e.g. 82"
                       value={form.distanceKm}
-                      onChange={setField('distanceKm')}
+                      onChange={(e) => {
+                        setDistanceTouched(true);
+                        setField('distanceKm')(e);
+                      }}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Auto-filled from origin and destination when available.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor={`${formId}-duration`}>
-                      Duration (minutes) <span className="text-destructive">*</span>
+                      Duration (hours) <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id={`${formId}-duration`}
                       type="number"
-                      inputMode="numeric"
-                      min={1}
+                      inputMode="decimal"
+                      min={0.25}
+                      step="0.25"
                       required
-                      placeholder="e.g. 120"
+                      placeholder="e.g. 2.5"
                       value={form.durationMinutes}
-                      onChange={setField('durationMinutes')}
+                      onChange={(e) => {
+                        setDurationTouched(true);
+                        setField('durationMinutes')(e);
+                      }}
                     />
+                    <p className="text-xs text-muted-foreground">Auto-filled from distance when available.</p>
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor={`${formId}-price`}>
@@ -808,6 +902,30 @@ export function AddRouteDialog({
                   value={form.notes}
                   onChange={setField('notes')}
                 />
+              </div>
+
+              <Separator />
+
+              {/* Route code (auto-generated, shown last) */}
+              <div className="space-y-2">
+                <SectionTitle icon={ClipboardList} hint="Auto-generated">
+                  Route code
+                </SectionTitle>
+                <div className="space-y-2">
+                  <Label htmlFor={`${formId}-code`}>
+                    Route code <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id={`${formId}-code`}
+                    required
+                    readOnly
+                    aria-readonly="true"
+                    autoComplete="off"
+                    className="font-mono uppercase"
+                    value={form.routeCode}
+                  />
+                  <p className="text-xs text-muted-foreground">Generated from origin and destination.</p>
+                </div>
               </div>
             </div>
           </div>

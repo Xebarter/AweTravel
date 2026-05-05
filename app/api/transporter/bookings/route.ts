@@ -91,16 +91,12 @@ export async function GET(request: NextRequest) {
   }
   const { q, status, paymentStatus, from, to, limit, offset } = parsed.data;
 
-  // RLS already restricts rows to transporter-owned routes; we additionally filter by owner for index leverage.
+  // RLS restricts rows to transporter-owned routes (see `bookings_select_transporter` policy).
   let query = supabase
     .from('bookings')
     .select(SELECT)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
-
-  // Filter to transporter-owned routes via join filter on route owner.
-  // PostgREST supports filtering on joined fields via dotted syntax when using embedded resources.
-  query = query.eq('route.owner_user_id', auth.userId);
 
   if (status !== 'all') query = query.eq('status', status);
   if (paymentStatus !== 'all') query = query.eq('payment_status', paymentStatus);

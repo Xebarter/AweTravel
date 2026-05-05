@@ -23,6 +23,7 @@ export function Header() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const isAdmin = profile?.user_type === 'admin';
+  const transporterOnlyLogout = pathname.startsWith('/transporter');
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
@@ -148,7 +149,7 @@ export function Header() {
               {/* Dropdown Menu */}
               {showProfileMenu && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-background shadow-lg">
-                  {isAdmin ? (
+                  {isAdmin || transporterOnlyLogout ? (
                     <div className="p-1.5">
                       <Button
                         variant="ghost"

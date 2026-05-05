@@ -57,6 +57,7 @@ import {
   ChevronsUpDown,
   CalendarClock,
   Gauge,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -313,31 +314,45 @@ export default function VehiclesPage() {
   ];
 
   return (
-    <div className="min-h-screen pb-[max(3rem,env(safe-area-inset-bottom,0px))] sm:pb-12">
-      <div className="relative overflow-hidden bg-linear-to-br from-primary via-primary to-primary/90 text-primary-foreground">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
-        <div className="relative flex flex-col gap-5 px-4 py-6 sm:gap-6 sm:px-6 sm:py-8 md:flex-row md:items-end md:justify-between md:px-8">
-          <div className="min-w-0 space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-              <Truck className="h-3.5 w-3.5" aria-hidden />
-              Fleet
+    <div className="min-h-0 bg-muted/20 pb-[max(3rem,env(safe-area-inset-bottom,0px))] dark:bg-background sm:pb-12">
+      <div className="border-b border-border/80 bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-8 md:px-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0 space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Transporter console · Vehicles
+              </p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.9rem] sm:leading-tight">
+                Fleet management
+              </h1>
+              <p className="max-w-2xl pt-1 text-sm leading-relaxed text-muted-foreground">
+                Register vehicles, monitor status, and keep seat capacity up to date. Cards on small
+                screens; full table on desktop.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Fleet management</h1>
-            <p className="max-w-xl text-sm text-primary-foreground/80 sm:text-base">
-              Search and filter your fleet, sort columns, and page through large lists. Cards on small
-              screens; full table on desktop.
-            </p>
+
+            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full gap-2 border-border/80 bg-background shadow-sm hover:bg-muted/40 sm:h-10 md:w-auto"
+                onClick={() => void reload()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} aria-hidden />
+                Refresh
+              </Button>
+              <Button
+                type="button"
+                className="h-11 w-full shrink-0 gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:h-10 md:w-auto"
+                onClick={openAddVehicleDialog}
+                disabled={isLoading || !!loadError}
+              >
+                <Plus className="h-4 w-4" />
+                Add vehicle
+              </Button>
+            </div>
           </div>
-          <Button
-            type="button"
-            className="h-11 w-full shrink-0 gap-2 bg-accent text-accent-foreground shadow-md hover:bg-accent/90 sm:h-10 md:w-auto"
-            onClick={openAddVehicleDialog}
-            disabled={isLoading || !!loadError}
-          >
-            <Plus className="h-4 w-4" />
-            Add vehicle
-          </Button>
         </div>
       </div>
 
@@ -363,109 +378,74 @@ export default function VehiclesPage() {
 
         {!loadError && (
           <>
-            {isLoading ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="border-border/80 shadow-sm">
-                    <CardContent className="flex items-start gap-4 pt-6">
-                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-muted" />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-                        <div className="h-8 w-16 animate-pulse rounded bg-muted" />
-                      </div>
-                    </CardContent>
-                  </Card>
+            <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+              <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-4">
+                {[
+                  { key: 'total', label: 'Total vehicles', value: isLoading ? null : stats.total },
+                  { key: 'active', label: 'Active', value: isLoading ? null : stats.active },
+                  { key: 'maintenance', label: 'In maintenance', value: isLoading ? null : stats.maintenance },
+                  { key: 'seats', label: 'Total seats', value: isLoading ? null : stats.totalSeats },
+                ].map((item) => (
+                  <div key={item.key} className="px-3 py-2 sm:px-4 sm:py-2.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <div className="mt-0.5">
+                      {item.value === null ? (
+                        <div className="h-5 w-10 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <p className="text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg">
+                          {item.value}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Truck className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total vehicles</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">{stats.total}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
-                      <CircleCheck className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Active</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-success">
-                        {stats.active}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
-                      <Wrench className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">In maintenance</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-warning">
-                        {stats.maintenance}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                      <Users className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total seats</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-accent">
-                        {stats.totalSeats}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            </div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative w-full min-w-0 max-w-lg flex-1">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+              <div className="relative w-full min-w-0 flex-1 lg:max-w-md">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
                   aria-hidden
                 />
                 <Input
                   placeholder="Search by plate or vehicle type…"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-11 border-border/80 bg-card pl-10 shadow-sm"
+                  className="h-9 border-border/80 bg-card pl-8 text-sm shadow-sm placeholder:text-muted-foreground/70"
                   aria-label="Search vehicles"
                   disabled={isLoading}
                 />
               </div>
-              <div className="min-w-0">
-                <p className="mb-2 text-xs font-medium text-muted-foreground lg:hidden">Status</p>
-                <div className="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden lg:gap-2">
-                  {filterOptions.map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={statusFilter === opt.value ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn(
-                        'shrink-0 snap-start rounded-full px-4 touch-manipulation',
-                        statusFilter === opt.value && 'shadow-sm',
-                      )}
-                      onClick={() => setStatusFilter(opt.value)}
-                      disabled={isLoading}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
+              <div className="flex items-center gap-2">
+                <div
+                  role="tablist"
+                  aria-label="Filter vehicles by status"
+                  className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-md border border-border/80 bg-card p-0.5 shadow-sm"
+                >
+                  {filterOptions.map((opt) => {
+                    const active = statusFilter === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        className={cn(
+                          'h-7 rounded-sm px-2.5 text-xs font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                          active
+                            ? 'bg-accent text-accent-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                        )}
+                        onClick={() => setStatusFilter(opt.value)}
+                        disabled={isLoading}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -479,32 +459,34 @@ export default function VehiclesPage() {
                 </CardContent>
               </Card>
             ) : totalFiltered > 0 ? (
-          <Card className="overflow-hidden border-border/80 shadow-sm">
-            <CardHeader className="flex flex-col gap-4 border-b border-border/60 bg-muted/20 px-4 pb-4 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
-              <div className="min-w-0">
-                <CardTitle className="text-lg tracking-tight">Your vehicles</CardTitle>
-                <CardDescription className="mt-1.5">
-                  {totalFiltered} vehicle{totalFiltered === 1 ? '' : 's'}
-                  {searchTerm.trim() || statusFilter !== 'all' ? ' match your filters' : ' in the fleet'}
-                </CardDescription>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <span className="text-sm text-muted-foreground">Rows per page</span>
-                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
-                  <SelectTrigger className="h-11 w-full sm:h-9 sm:w-[88px]" size="sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper" className="w-[min(100vw-2rem,12rem)]">
-                    {[10, 25, 50, 100].map((n) => (
-                      <SelectItem key={n} value={String(n)}>
-                        {n}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
+              <Card className="overflow-hidden border-border/80 shadow-sm">
+                <CardHeader className="flex flex-col gap-4 border-b border-border/60 bg-muted/20 px-4 pb-4 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6">
+                  <div className="min-w-0">
+                    <CardTitle className="text-lg tracking-tight">Your vehicles</CardTitle>
+                    <CardDescription className="mt-1.5">
+                      {totalFiltered} vehicle{totalFiltered === 1 ? '' : 's'}
+                      {searchTerm.trim() || statusFilter !== 'all'
+                        ? ' match your filters'
+                        : ' in the fleet'}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <span className="text-sm text-muted-foreground">Rows per page</span>
+                    <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                      <SelectTrigger className="h-11 w-full sm:h-9 sm:w-[88px]" size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="w-[min(100vw-2rem,12rem)]">
+                        {[10, 25, 50, 100].map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
               {/* Mobile & tablet: vehicle cards */}
               <div className="space-y-3 bg-muted/25 p-4 sm:space-y-4 sm:p-6 lg:hidden">
                 {pageSlice.map((vehicle) => {
@@ -621,7 +603,7 @@ export default function VehiclesPage() {
               </div>
 
               {/* Large screens: data table */}
-              <div className="relative hidden max-h-[min(70vh,680px)] w-full overflow-auto lg:block">
+              <div className="relative hidden max-h-[min(72vh,720px)] w-full overflow-auto lg:block">
                 <table className="w-full min-w-[760px] caption-bottom text-sm">
                   <TableHeader className="sticky top-0 z-10 border-b border-border bg-card/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-card/80">
                     <TableRow className="border-0 hover:bg-transparent">
@@ -750,44 +732,44 @@ export default function VehiclesPage() {
                   </TableBody>
                 </table>
               </div>
-            </CardContent>
-            <div className="flex flex-col gap-4 border-t border-border/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <p className="text-center text-sm text-muted-foreground sm:text-left">
-                Showing{' '}
-                <span className="font-medium text-foreground">
-                  {showingFrom}–{showingTo}
-                </span>{' '}
-                of <span className="font-medium text-foreground">{totalFiltered}</span>
-              </p>
-              <div className="flex w-full items-stretch gap-2 sm:w-auto sm:items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="min-h-11 flex-1 touch-manipulation sm:min-h-9 sm:flex-none"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </Button>
-                <span className="flex min-h-11 min-w-0 flex-1 items-center justify-center self-center text-sm text-muted-foreground sm:min-h-9 sm:min-w-20 sm:flex-none">
-                  <span className="truncate">
-                    Page {page} / {totalPages}
-                  </span>
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="min-h-11 flex-1 touch-manipulation sm:min-h-9 sm:flex-none"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </Card>
+                </CardContent>
+                <div className="flex flex-col gap-4 border-t border-border/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <p className="text-center text-sm text-muted-foreground sm:text-left">
+                    Showing{' '}
+                    <span className="font-medium text-foreground">
+                      {showingFrom}–{showingTo}
+                    </span>{' '}
+                    of <span className="font-medium text-foreground">{totalFiltered}</span>
+                  </p>
+                  <div className="flex w-full items-stretch gap-2 sm:w-auto sm:items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 flex-1 touch-manipulation sm:min-h-9 sm:flex-none"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <span className="flex min-h-11 min-w-0 flex-1 items-center justify-center self-center text-sm text-muted-foreground sm:min-h-9 sm:min-w-20 sm:flex-none">
+                      <span className="truncate">
+                        Page {page} / {totalPages}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 flex-1 touch-manipulation sm:min-h-9 sm:flex-none"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </Card>
         ) : (
           <Empty className="border border-dashed border-border/80 bg-muted/20">
             <EmptyHeader>
