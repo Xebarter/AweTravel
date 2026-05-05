@@ -16,6 +16,7 @@ import {
   MapPin,
   PauseCircle,
   Plus,
+  RefreshCw,
   Route as RouteIcon,
   Megaphone,
   Search,
@@ -200,16 +201,22 @@ export default function RoutesPage() {
 
   const stats = useMemo(() => {
     const active = routes.filter((r) => r.status === 'active');
+    const paused = routes.filter((r) => r.status === 'paused').length;
+    const archived = routes.filter((r) => r.status === 'archived').length;
     const dailyDepartures = active.reduce((sum, r) => sum + dailyDeparturesEstimate(r), 0);
     const totalDistance = active.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
     const avgDistance = active.length > 0 ? totalDistance / active.length : 0;
+    const pendingHomeAds = homeAdApplications.filter((a) => a.status === 'pending_review').length;
     return {
       total: routes.length,
       active: active.length,
+      paused,
+      archived,
+      pendingHomeAds,
       dailyDepartures: Math.round(dailyDepartures * 10) / 10,
       avgDistance: Math.round(avgDistance),
     };
-  }, [routes]);
+  }, [routes, homeAdApplications]);
 
   const filteredRoutes = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -401,33 +408,43 @@ export default function RoutesPage() {
   ];
 
   return (
-    <div className="min-h-screen pb-[max(3rem,env(safe-area-inset-bottom,0px))] sm:pb-12">
-      <div className="relative overflow-hidden bg-linear-to-br from-primary via-primary to-primary/90 text-primary-foreground">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
-        <div className="relative flex flex-col gap-5 px-4 py-6 sm:gap-6 sm:px-6 sm:py-8 md:flex-row md:items-end md:justify-between md:px-8">
+    <div className="min-h-0 bg-muted/20 pb-[max(3rem,env(safe-area-inset-bottom,0px))] dark:bg-background sm:pb-12">
+      <div className="border-b border-border/80 bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-8 md:px-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0 space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-              <RouteIcon className="h-3.5 w-3.5" aria-hidden />
-              Routes
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Transporter console · Routes
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-[1.9rem] sm:leading-tight">
               Manage routes
             </h1>
-            <p className="max-w-xl text-sm text-primary-foreground/80 sm:text-base">
-              Each route can have many buses moving at different times of the day. Define the path,
-              add stops, then schedule departures to put buses on the road.
+            <p className="max-w-2xl pt-1 text-sm leading-relaxed text-muted-foreground">
+              Define the route path, stops, and departures. Keep inventory accurate so passengers see reliable schedules.
             </p>
           </div>
-          <Button
-            type="button"
-            className="h-11 w-full shrink-0 gap-2 bg-accent text-accent-foreground shadow-md hover:bg-accent/90 sm:h-10 md:w-auto"
-            onClick={openAdd}
-            disabled={isLoading || !!loadError}
-          >
-            <Plus className="h-4 w-4" />
-            Add route
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full gap-2 border-border/80 bg-background shadow-sm hover:bg-muted/40 sm:h-10 md:w-auto"
+              onClick={() => void reload()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} aria-hidden />
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              className="h-11 w-full shrink-0 gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:h-10 md:w-auto"
+              onClick={openAdd}
+              disabled={isLoading || !!loadError}
+            >
+              <Plus className="h-4 w-4" />
+              Add route
+            </Button>
+          </div>
+          </div>
         </div>
       </div>
 
@@ -459,76 +476,32 @@ export default function RoutesPage() {
 
         {!loadError && (
           <>
-            {isLoading ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="border-border/80 shadow-sm">
-                    <CardContent className="flex items-start gap-4 pt-6">
-                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-muted" />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-                        <div className="h-8 w-16 animate-pulse rounded bg-muted" />
-                      </div>
-                    </CardContent>
-                  </Card>
+            <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
+              <div className="grid grid-cols-2 divide-x divide-border sm:grid-cols-5">
+                {[
+                  { key: 'total', label: 'Total routes', value: isLoading ? null : stats.total },
+                  { key: 'active', label: 'Active', value: isLoading ? null : stats.active },
+                  { key: 'paused', label: 'Paused', value: isLoading ? null : stats.paused },
+                  { key: 'archived', label: 'Archived', value: isLoading ? null : stats.archived },
+                  { key: 'ads', label: 'Home ads pending', value: isLoading ? null : stats.pendingHomeAds },
+                ].map((item) => (
+                  <div key={item.key} className="px-3 py-2 sm:px-4 sm:py-2.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <div className="mt-0.5">
+                      {item.value === null ? (
+                        <div className="h-5 w-10 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <p className="text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg">
+                          {item.value}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <RouteIcon className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total routes</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight">
-                        {stats.total}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
-                      <CircleCheck className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Active</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-success">
-                        {stats.active}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-warning">
-                      <Bus className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Daily departures</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-warning">
-                        {stats.dailyDepartures.toLocaleString()}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-border/80 shadow-sm transition-shadow hover:shadow-md">
-                  <CardContent className="flex items-start gap-4 pt-6">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-                      <MapPin className="h-5 w-5" aria-hidden />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Avg distance</p>
-                      <p className="mt-0.5 text-2xl font-bold tabular-nums tracking-tight text-accent">
-                        {stats.avgDistance.toLocaleString()} km
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            </div>
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="relative w-full min-w-0 max-w-lg flex-1">

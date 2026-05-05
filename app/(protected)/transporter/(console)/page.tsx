@@ -8,63 +8,65 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import {
   BarChart3,
   CalendarClock,
-  ChevronRight,
   CreditCard,
-  Wrench,
   MapPin,
-  ShieldCheck,
   Ticket,
   Truck,
   TrendingUp,
+  Wrench,
 } from 'lucide-react';
 import Link from 'next/link';
 import { APP_CURRENCY_CODE, formatCurrency } from '@/lib/currency';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTransporterDashboardMetrics, type TransporterDashboardMetrics } from '@/lib/transporter-dashboard/client';
+import { getTransporterAnalytics, type TransporterAnalytics } from '@/lib/transporter-analytics/client';
 
 export default function TransporterDashboard() {
-  // Demo data until transporter reporting is wired.
-  const revenueData = [
-    { day: 'Mon', revenue: 125000, bookings: 15 },
-    { day: 'Tue', revenue: 180000, bookings: 22 },
-    { day: 'Wed', revenue: 160000, bookings: 19 },
-    { day: 'Thu', revenue: 210000, bookings: 25 },
-    { day: 'Fri', revenue: 245000, bookings: 30 },
-    { day: 'Sat', revenue: 280000, bookings: 35 },
-    { day: 'Sun', revenue: 200000, bookings: 24 },
-  ];
-
-  const dailyBookings = [
-    { date: 'May 15', bookings: 18 },
-    { date: 'May 16', bookings: 22 },
-    { date: 'May 17', bookings: 25 },
-    { date: 'May 18', bookings: 30 },
-    { date: 'May 19', bookings: 28 },
-    { date: 'May 20', bookings: 35 },
-  ];
-
   const [metrics, setMetrics] = useState<TransporterDashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState<TransporterAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  const loadMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    setMetricsError(null);
+    const next = await getTransporterDashboardMetrics();
+    setMetrics(next);
+    setMetricsLoading(false);
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    const next = await getTransporterAnalytics();
+    setAnalytics(next);
+    setAnalyticsLoading(false);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setMetricsLoading(true);
-    setMetricsError(null);
     void (async () => {
       try {
-        const next = await getTransporterDashboardMetrics();
-        if (!cancelled) setMetrics(next);
+        await loadMetrics();
+        await loadAnalytics();
       } catch (e: unknown) {
-        if (!cancelled) setMetricsError(e instanceof Error ? e.message : 'Failed to load dashboard metrics.');
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : 'Failed to load dashboard data.';
+          setMetricsError(msg);
+          setAnalyticsError(msg);
+          setMetricsLoading(false);
+          setAnalyticsLoading(false);
+        }
       } finally {
-        if (!cancelled) setMetricsLoading(false);
+        // handled above
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadMetrics, loadAnalytics]);
 
   const weeklyRevenue = useMemo(() => {
     if (!metrics) return null;
@@ -72,18 +74,24 @@ export default function TransporterDashboard() {
     return formatCurrency(metrics.weeklyRevenueMinor);
   }, [metrics]);
 
+  const revenueData = useMemo(() => {
+    const rows = analytics?.weeklyRevenueBookings ?? [];
+    return rows.map((r) => ({
+      day: r.day.slice(5), // MM-DD
+      revenue: r.revenueMinor,
+      bookings: r.bookings,
+    }));
+  }, [analytics]);
+
+  const dailyBookings = useMemo(() => {
+    const rows = analytics?.bookingsTrend ?? [];
+    return rows.map((r) => ({ date: r.day.slice(5), bookings: r.bookings }));
+  }, [analytics]);
+
   return (
     <div className="min-h-0 bg-muted/20 pb-12 dark:bg-background">
-      <header className="border-b border-border bg-background">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-            <Link href="/dashboard" className="transition-colors hover:text-foreground">
-              Dashboard
-            </Link>
-            <ChevronRight className="size-4 opacity-50" aria-hidden />
-            <span className="font-medium text-foreground">Transporter console</span>
-          </nav>
-
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -98,17 +106,25 @@ export default function TransporterDashboard() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm" className="h-8 border-border/80 bg-background shadow-sm">
-                <Link href="/transporter/profile">
-                  <ShieldCheck className="size-4" aria-hidden />
-                  Profile
-                </Link>
-              </Button>
-              <Button asChild size="sm" className="h-8 font-medium shadow-sm">
-                <Link href="/transporter/routes">
-                  <MapPin className="size-4" aria-hidden />
-                  Manage routes
-                </Link>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 border-border/80 bg-background shadow-sm"
+                disabled={metricsLoading}
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      await loadMetrics();
+                    } catch (e) {
+                      setMetricsError(e instanceof Error ? e.message : 'Failed to load dashboard metrics.');
+                      setMetricsLoading(false);
+                    }
+                  })();
+                }}
+              >
+                <TrendingUp className="size-4" aria-hidden />
+                Refresh
               </Button>
             </div>
           </div>
@@ -119,6 +135,11 @@ export default function TransporterDashboard() {
         {metricsError ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {metricsError}
+          </div>
+        ) : null}
+        {analyticsError && !metricsError ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {analyticsError}
           </div>
         ) : null}
 
@@ -350,7 +371,16 @@ export default function TransporterDashboard() {
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">Payments</p>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {formatCurrency(35_000)} processed from 7 bookings in the last 24 hours.
+                      {metricsLoading ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Skeleton className="h-4 w-20" /> processed this week.
+                        </span>
+                      ) : (
+                        <>
+                          {weeklyRevenue ?? '—'} processed this week.{' '}
+                          {metrics?.pendingPayouts ? `${metrics.pendingPayouts} payout(s) pending.` : 'No payouts pending.'}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -366,7 +396,7 @@ export default function TransporterDashboard() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-base font-semibold">Weekly revenue & bookings</CardTitle>
-                  <CardDescription className="text-xs">A 7‑day snapshot (demo data)</CardDescription>
+                  <CardDescription className="text-xs">A 7‑day snapshot</CardDescription>
                 </div>
                 <div className="flex size-8 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
                   <BarChart3 className="size-4" aria-hidden />
@@ -374,59 +404,63 @@ export default function TransporterDashboard() {
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              <ResponsiveContainer width="100%" height={290}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="day"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <Tooltip
-                    formatter={(value, name) => {
-                      if (name?.toString().toLowerCase().includes('revenue')) {
-                        const n = typeof value === 'number' ? value : Number(value);
-                        return formatCurrency(Number.isFinite(n) ? n : 0);
-                      }
-                      return value as unknown as string;
-                    }}
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: '1px solid hsl(var(--border))',
-                      background: 'hsl(var(--background))',
-                    }}
-                  />
-                  <Legend />
-                  <Bar
-                    yAxisId="left"
-                    dataKey="revenue"
-                    fill="hsl(var(--primary))"
-                    name={`Revenue (${APP_CURRENCY_CODE})`}
-                    radius={[6, 6, 0, 0]}
-                  />
-                  <Bar
-                    yAxisId="right"
-                    dataKey="bookings"
-                    fill="hsl(var(--accent))"
-                    name="Bookings"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <Skeleton className="h-[290px] w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height={290}>
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="day"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => {
+                        if (name?.toString().toLowerCase().includes('revenue')) {
+                          const n = typeof value === 'number' ? value : Number(value);
+                          return formatCurrency(Number.isFinite(n) ? n : 0);
+                        }
+                        return value as unknown as string;
+                      }}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--background))',
+                      }}
+                    />
+                    <Legend />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="revenue"
+                      fill="hsl(var(--primary))"
+                      name={`Revenue (${metrics?.currency ?? APP_CURRENCY_CODE})`}
+                      radius={[6, 6, 0, 0]}
+                    />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="bookings"
+                      fill="hsl(var(--accent))"
+                      name="Bookings"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -435,7 +469,7 @@ export default function TransporterDashboard() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-base font-semibold">Bookings trend</CardTitle>
-                  <CardDescription className="text-xs">Last 6 days (demo data)</CardDescription>
+                  <CardDescription className="text-xs">Last 6 days</CardDescription>
                 </div>
                 <div className="flex size-8 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
                   <TrendingUp className="size-4" aria-hidden />
@@ -443,37 +477,41 @@ export default function TransporterDashboard() {
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              <ResponsiveContainer width="100%" height={290}>
-                <LineChart data={dailyBookings}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: '1px solid hsl(var(--border))',
-                      background: 'hsl(var(--background))',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="bookings"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2.25}
-                    dot={{ fill: 'hsl(var(--primary))', r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {analyticsLoading ? (
+                <Skeleton className="h-[290px] w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height={290}>
+                  <LineChart data={dailyBookings}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: '1px solid hsl(var(--border))',
+                        background: 'hsl(var(--background))',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="bookings"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2.25}
+                      dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -484,15 +522,40 @@ export default function TransporterDashboard() {
             <CardDescription className="text-xs">A place to surface the latest bookings and schedule changes</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 p-6">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-16 rounded-xl" />
-              <Skeleton className="h-16 rounded-xl" />
-              <Skeleton className="h-16 rounded-xl" />
-            </div>
-            <Separator className="bg-border/60" />
-            <p className="text-sm text-muted-foreground">
-              This section will automatically populate once booking + schedule activity endpoints are connected.
-            </p>
+            {analyticsLoading ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Skeleton className="h-16 rounded-xl" />
+                  <Skeleton className="h-16 rounded-xl" />
+                  <Skeleton className="h-16 rounded-xl" />
+                </div>
+                <Separator className="bg-border/60" />
+                <p className="text-sm text-muted-foreground">Loading activity…</p>
+              </>
+            ) : (analytics?.recentActivity?.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground">No booking activity yet.</p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {(analytics?.recentActivity ?? []).slice(0, 6).map((row) => (
+                    <div key={row.id} className="rounded-xl border border-border/80 bg-background p-3.5 shadow-sm">
+                      <p className="text-xs font-medium text-muted-foreground">{row.bookingCode}</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{row.routeLabel || row.routeCode}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {row.travelDate} · Seat {row.seatCode} · {formatCurrency(row.amountMinor)}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {row.status} · payment {row.paymentStatus}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <Separator className="bg-border/60" />
+                <Button asChild variant="outline" size="sm" className="h-8 border-border/80">
+                  <Link href="/transporter/bookings">Open bookings</Link>
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

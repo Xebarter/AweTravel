@@ -19,19 +19,30 @@ export async function GET() {
 
   const { userId } = auth;
 
-  const [{ count: routesActive, error: routesErr }, { count: vehiclesOnline, error: vehiclesErr }] =
-    await Promise.all([
-      supabase
-        .from('transporter_routes')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_user_id', userId)
-        .eq('status', 'active'),
-      supabase
-        .from('transporter_vehicles')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_user_id', userId)
-        .eq('status', 'active'),
-    ]);
+  const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    { count: routesActive, error: routesErr },
+    { count: vehiclesOnline, error: vehiclesErr },
+    { count: departuresActive, error: depCountErr },
+  ] = await Promise.all([
+    supabase
+      .from('transporter_routes')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_user_id', userId)
+      .eq('status', 'active'),
+    supabase
+      .from('transporter_vehicles')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_user_id', userId)
+      .eq('status', 'active'),
+    supabase
+      .from('transporter_route_departures')
+      .select('id, route:transporter_routes!inner(owner_user_id,status)', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .eq('route.owner_user_id', userId)
+      .eq('route.status', 'active'),
+  ]);
 
   if (routesErr) {
     console.error('transporter dashboard routes:', routesErr);
@@ -41,57 +52,52 @@ export async function GET() {
     console.error('transporter dashboard vehicles:', vehiclesErr);
     return NextResponse.json({ error: 'Failed to load dashboard metrics' }, { status: 500 });
   }
-
-  // Departures + simple “weekly revenue estimate” = sum(price_per_departure * #days_in_week)
-  // for active routes + active departures. This is an estimate only.
-  const { data: departureRows, error: depErr } = await supabase
-    .from('transporter_route_departures')
-    .select(
-      `
-        days_of_week,
-        status,
-        price_override_minor,
-        route:transporter_routes!inner(owner_user_id, status, base_price_minor, currency)
-      `,
-    )
-    .eq('status', 'active')
-    .eq('route.owner_user_id', userId)
-    .eq('route.status', 'active');
-
-  if (depErr) {
-    console.error('transporter dashboard departures:', depErr);
+  if (depCountErr) {
+    console.error('transporter dashboard departures count:', depCountErr);
     return NextResponse.json({ error: 'Failed to load dashboard metrics' }, { status: 500 });
   }
 
-  const departuresActive = (departureRows ?? []).length;
+  // Weekly revenue (real): completed bookings in last 7 days for routes owned by this transporter.
+  // Note: this uses bookings table; payment linkage to platform_transactions is optional and can be added later.
+  const { data: weeklyBookings, error: wkErr } = await supabase
+    .from('bookings')
+    .select('amount_minor,currency,route:transporter_routes!inner(owner_user_id)')
+    .eq('payment_status', 'completed')
+    .gte('created_at', sevenDaysAgoIso)
+    .eq('route.owner_user_id', userId);
+
+  if (wkErr) {
+    console.error('transporter dashboard weekly bookings:', wkErr);
+    return NextResponse.json({ error: 'Failed to load dashboard metrics' }, { status: 500 });
+  }
+
   let currency: string | null = null;
   let weeklyRevenueMinor = 0;
-
-  for (const row of departureRows ?? []) {
-    const route = (row as any).route as { base_price_minor: number; currency: string } | null;
-    if (!route) continue;
-    currency = currency ?? route.currency ?? null;
-    const priceMinor = Number((row as any).price_override_minor ?? route.base_price_minor ?? 0);
-    const daysMask = Number((row as any).days_of_week ?? 0);
-    const daysInWeek = countDaysOfWeek(daysMask);
-    weeklyRevenueMinor += priceMinor * daysInWeek;
+  for (const row of weeklyBookings ?? []) {
+    currency = currency ?? (row as any).currency ?? null;
+    weeklyRevenueMinor += Number((row as any).amount_minor ?? 0);
   }
+
+  // Pending payouts from platform ledger (requires transporter-select policies).
+  const { data: pendingPayoutRows, error: payoutErr } = await supabase
+    .from('platform_transactions')
+    .select('id', { count: 'exact' })
+    .eq('kind', 'transporter_payout')
+    .in('status', ['pending', 'processing']);
+
+  if (payoutErr) {
+    console.error('transporter dashboard payouts:', payoutErr);
+    return NextResponse.json({ error: 'Failed to load dashboard metrics' }, { status: 500 });
+  }
+  const pendingPayouts = pendingPayoutRows?.length ?? 0;
 
   return NextResponse.json({
     routesActive: routesActive ?? 0,
     vehiclesOnline: vehiclesOnline ?? 0,
-    departuresActive,
+    departuresActive: departuresActive ?? 0,
     weeklyRevenueMinor,
     currency: currency ?? 'UGX',
+    pendingPayouts,
   });
-}
-
-function countDaysOfWeek(mask: number): number {
-  // mask is 1..127 bitmask for 7 days.
-  let n = 0;
-  for (let i = 0; i < 7; i++) {
-    if ((mask & (1 << i)) !== 0) n++;
-  }
-  return n;
 }
 

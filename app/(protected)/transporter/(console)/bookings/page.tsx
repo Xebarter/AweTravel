@@ -1,90 +1,81 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Calendar, MapPin, Users, DollarSign, Eye } from 'lucide-react';
+import { MapPin, Users, Eye } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { listTransporterBookings, patchTransporterBooking } from '@/lib/transporter-bookings/client';
+import type { Booking } from '@/lib/bookings/types';
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState([
-    {
-      id: '1',
-      bookingId: 'AWE-2024-0001234',
-      route: 'Lagos - Ibadan',
-      date: '2024-05-20',
-      passengerName: 'John Doe',
-      seat: 'A05',
-      status: 'Confirmed',
-      amount: 5250,
-      paymentStatus: 'Completed',
-    },
-    {
-      id: '2',
-      bookingId: 'AWE-2024-0001233',
-      route: 'Lagos - Ibadan',
-      date: '2024-05-20',
-      passengerName: 'Jane Smith',
-      seat: 'A10',
-      status: 'Confirmed',
-      amount: 7750,
-      paymentStatus: 'Completed',
-    },
-    {
-      id: '3',
-      bookingId: 'AWE-2024-0001232',
-      route: 'Abuja - Kaduna',
-      date: '2024-05-19',
-      passengerName: 'Ahmed Hassan',
-      seat: 'B08',
-      status: 'Completed',
-      amount: 4050,
-      paymentStatus: 'Completed',
-    },
-    {
-      id: '4',
-      bookingId: 'AWE-2024-0001231',
-      route: 'Lagos - Ibadan',
-      date: '2024-05-21',
-      passengerName: 'Chioma Okafor',
-      seat: 'A15',
-      status: 'Pending',
-      amount: 5250,
-      paymentStatus: 'Pending',
-    },
-  ]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Confirmed' | 'Completed' | 'Pending'>('All');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'completed' | 'pending'>('all');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = booking.bookingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.passengerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.route.toLowerCase().includes(searchTerm.toLowerCase());
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    setUpdateError(null);
+    try {
+      const data = await listTransporterBookings({
+        q: searchTerm.trim() || undefined,
+        status: filterStatus,
+        limit: 100,
+      });
+      setBookings(data);
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load bookings.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, filterStatus]);
 
-    const matchesStatus = filterStatus === 'All' || booking.status === filterStatus;
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-    return matchesSearch && matchesStatus;
-  });
-
-  const stats = {
-    totalBookings: bookings.length,
-    confirmedBookings: bookings.filter(b => b.status === 'Confirmed').length,
-    totalRevenue: bookings.reduce((sum, b) => sum + b.amount, 0),
-    pendingPayments: bookings.filter(b => b.paymentStatus === 'Pending').length,
-  };
+  const stats = useMemo(() => {
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter((b) => b.status === 'confirmed').length;
+    const totalRevenueMinor = bookings.reduce(
+      (sum, b) => sum + (b.paymentStatus === 'completed' ? b.amountMinor : 0),
+      0,
+    );
+    const pendingPayments = bookings.filter((b) => b.paymentStatus === 'pending').length;
+    return { totalBookings, confirmedBookings, totalRevenueMinor, pendingPayments };
+  }, [bookings]);
 
   return (
     <div className="min-h-screen pb-12">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-8 px-6 md:px-8">
+      <div className="bg-linear-to-r from-primary to-primary-dark text-white py-8 px-6 md:px-8">
         <h1 className="text-3xl font-bold">Bookings & Reservations</h1>
         <p className="text-white/80 mt-1">Monitor and manage passenger bookings</p>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
+        {updateError ? (
+          <div className="mb-6 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {updateError}
+          </div>
+        ) : null}
+        {loadError ? (
+          <div className="mb-6 rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {loadError}{' '}
+            <button className="underline" onClick={() => void reload()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+
         {/* Stats */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <Card className="border-border">
@@ -102,7 +93,7 @@ export default function BookingsPage() {
           <Card className="border-border">
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-              <p className="text-2xl font-bold text-accent">{formatCurrency(stats.totalRevenue)}</p>
+              <p className="text-2xl font-bold text-accent">{formatCurrency(stats.totalRevenueMinor)}</p>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -122,35 +113,48 @@ export default function BookingsPage() {
             className="bg-secondary/30"
           />
           <div className="flex gap-2 flex-wrap">
-            {(['All', 'Confirmed', 'Completed', 'Pending'] as const).map((status) => (
+            {(
+              [
+                { id: 'all' as const, label: 'All' },
+                { id: 'confirmed' as const, label: 'Confirmed' },
+                { id: 'completed' as const, label: 'Completed' },
+                { id: 'pending' as const, label: 'Pending' },
+              ] as const
+            ).map((s) => (
               <Button
-                key={status}
-                variant={filterStatus === status ? 'default' : 'outline'}
+                key={s.id}
+                variant={filterStatus === s.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilterStatus(status)}
-                className={filterStatus === status ? 'bg-accent hover:bg-accent-dark' : ''}
+                onClick={() => setFilterStatus(s.id)}
+                className={filterStatus === s.id ? 'bg-accent hover:bg-accent-dark' : ''}
               >
-                {status}
+                {s.label}
               </Button>
             ))}
           </div>
         </div>
 
         {/* Bookings Table */}
-        {filteredBookings.length > 0 ? (
+        {loading ? (
+          <Card className="border-border">
+            <CardContent className="pt-12 pb-12 text-center">
+              <p className="text-sm text-muted-foreground">Loading bookings…</p>
+            </CardContent>
+          </Card>
+        ) : bookings.length > 0 ? (
           <div className="space-y-4">
-            {filteredBookings.map((booking) => (
+            {bookings.map((booking) => (
               <Card key={booking.id} className="border-border hover:shadow-md transition">
                 <CardContent className="pt-6">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     {/* Left - Booking Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3">
-                        <p className="text-sm text-muted-foreground font-mono">{booking.bookingId}</p>
+                        <p className="text-sm text-muted-foreground font-mono">{booking.bookingCode}</p>
                         <div className={`px-2 py-1 rounded text-xs font-medium ${
-                          booking.status === 'Confirmed'
+                          booking.status === 'confirmed'
                             ? 'bg-success/10 text-success'
-                            : booking.status === 'Completed'
+                            : booking.status === 'completed'
                             ? 'bg-blue-500/10 text-blue-600'
                             : 'bg-warning/10 text-warning'
                         }`}>
@@ -160,26 +164,26 @@ export default function BookingsPage() {
 
                       <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-accent" />
-                        {booking.route}
+                        {booking.routeLabel}
                       </h3>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground mb-1">Passenger</p>
-                          <p className="font-medium text-foreground">{booking.passengerName}</p>
+                          <p className="font-medium text-foreground">{booking.passengerName ?? '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Seat</p>
-                          <p className="font-medium text-foreground text-accent">{booking.seat}</p>
+                          <p className="font-medium text-accent">{booking.seatCode}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Date</p>
-                          <p className="font-medium text-foreground">{booking.date}</p>
+                          <p className="font-medium text-foreground">{booking.travelDate}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground mb-1">Payment</p>
                           <p className={`font-medium ${
-                            booking.paymentStatus === 'Completed'
+                            booking.paymentStatus === 'completed'
                               ? 'text-success'
                               : 'text-warning'
                           }`}>
@@ -193,12 +197,60 @@ export default function BookingsPage() {
                     <div className="flex flex-col items-end gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Amount</p>
-                        <p className="text-2xl font-bold text-accent">{formatCurrency(booking.amount)}</p>
+                        <p className="text-2xl font-bold text-accent">{formatCurrency(booking.amountMinor)}</p>
                       </div>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Eye className="h-4 w-4" />
-                        View Details
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          disabled={updatingId === booking.id}
+                          onClick={async () => {
+                            setUpdatingId(booking.id);
+                            setUpdateError(null);
+                            try {
+                              const next =
+                                booking.status === 'pending'
+                                  ? 'confirmed'
+                                  : booking.status === 'confirmed'
+                                    ? 'completed'
+                                    : booking.status;
+                              await patchTransporterBooking(booking.id, { status: next });
+                              await reload();
+                            } catch (e: unknown) {
+                              setUpdateError(e instanceof Error ? e.message : 'Failed to update booking.');
+                            } finally {
+                              setUpdatingId(null);
+                            }
+                          }}
+                        >
+                          Confirm/Complete
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 text-destructive hover:bg-destructive/10"
+                          disabled={updatingId === booking.id || booking.status === 'cancelled'}
+                          onClick={async () => {
+                            setUpdatingId(booking.id);
+                            setUpdateError(null);
+                            try {
+                              await patchTransporterBooking(booking.id, { status: 'cancelled' });
+                              await reload();
+                            } catch (e: unknown) {
+                              setUpdateError(e instanceof Error ? e.message : 'Failed to cancel booking.');
+                            } finally {
+                              setUpdatingId(null);
+                            }
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2" disabled>
+                          <Eye className="h-4 w-4" />
+                          View
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

@@ -1,4 +1,3 @@
-import { DashboardHeader } from '@/components/shared/DashboardHeader';
 import { TransporterSidebar } from '@/components/transporter/TransporterSidebar';
 
 export default function TransporterConsoleLayout({
@@ -7,12 +6,9 @@ export default function TransporterConsoleLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <DashboardHeader />
-      <div className="flex min-h-0 min-w-0 flex-1">
-        <TransporterSidebar />
-        <main className="min-h-0 min-w-0 flex-1">{children}</main>
-      </div>
-    </>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+      <TransporterSidebar />
+      <main className="min-h-0 min-w-0 flex-1 pt-14 md:pt-0">{children}</main>
+    </div>
   );
 }

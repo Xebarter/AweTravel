@@ -4,6 +4,7 @@ export type TransporterDashboardMetrics = {
   departuresActive: number;
   weeklyRevenueMinor: number;
   currency: string;
+  pendingPayouts: number;
 };
 
 async function readError(res: Response): Promise<string> {
