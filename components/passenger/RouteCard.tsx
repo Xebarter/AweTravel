@@ -18,7 +18,9 @@ interface RouteCardProps {
 export function RouteCard({ route, travelDate }: RouteCardProps) {
   const minPrice =
     route.available_seats.length > 0 ? Math.min(...route.available_seats.map((s) => s.base_price)) : 0;
-  const availableSeats = route.available_seats.length;
+  /** True availability (search only materializes up to 60 seat rows for pricing UI). */
+  const seatsAvailable =
+    route.total_seats > 0 ? Math.max(0, route.total_seats - route.booked_seats) : route.available_seats.length;
   const durationH = Math.floor(route.route.estimated_duration_minutes / 60);
   const durationM = route.route.estimated_duration_minutes % 60;
 
@@ -59,7 +61,7 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Users className="size-4" aria-hidden />
-                  {availableSeats} seats left
+                  <span className="font-medium text-foreground">{seatsAvailable}</span> seats available
                 </span>
               </div>
             </div>
@@ -74,16 +76,16 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
                 variant="outline"
                 className={cn(
                   'shrink-0 font-normal',
-                  availableSeats <= 6 ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'bg-background',
+                  seatsAvailable <= 6 ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'bg-background',
                 )}
               >
-                {availableSeats <= 6 ? 'Limited seats' : 'Good availability'}
+                {seatsAvailable <= 6 ? 'Limited seats' : 'Good availability'}
               </Badge>
             </div>
           </div>
 
           <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
               <div>
                 <p className="text-xs text-muted-foreground">Departure</p>
                 <p className="text-sm font-medium text-foreground">{route.schedule.departure_time}</p>
@@ -92,7 +94,11 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
                 <p className="text-xs text-muted-foreground">Arrival</p>
                 <p className="text-sm font-medium text-foreground">{route.schedule.arrival_time}</p>
               </div>
-              <div className="sm:text-right">
+              <div>
+                <p className="text-xs text-muted-foreground">Seats available</p>
+                <p className="text-sm font-medium tabular-nums text-foreground">{seatsAvailable}</p>
+              </div>
+              <div className="lg:text-right">
                 <p className="text-xs text-muted-foreground">Distance</p>
                 <p className="text-sm font-medium text-foreground">{route.route.distance_km} km</p>
               </div>

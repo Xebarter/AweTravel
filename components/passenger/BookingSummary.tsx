@@ -46,7 +46,7 @@ export function BookingSummary({
         {/* Route Information */}
         <div className="space-y-3">
           <h4 className="font-semibold text-foreground">Route Details</h4>
-          
+
           <div className="space-y-2 text-sm">
             <div className="flex items-start gap-3">
               <MapPin className="h-4 w-4 text-accent mt-0.5" />
@@ -80,7 +80,7 @@ export function BookingSummary({
         {/* Passenger Information */}
         <div className="space-y-3">
           <h4 className="font-semibold text-foreground">Passenger Details</h4>
-          
+
           <div className="space-y-2 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Name</p>
@@ -102,7 +102,7 @@ export function BookingSummary({
         {/* Price Breakdown */}
         <div className="space-y-3">
           <h4 className="font-semibold text-foreground">Price Breakdown</h4>
-          
+
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Ticket Price</span>
