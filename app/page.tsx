@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { getHomePathForProfile } from '@/lib/post-auth-redirect';
@@ -32,13 +32,19 @@ function todayISO() {
 
 function HomeBookingSection() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { profile } = useAuth();
 
-  const [form, setForm] = useState<HomeSearchState>({
-    from: '',
-    to: '',
-    date: todayISO(),
-    passengers: '1',
+  const qFrom = searchParams.get('from');
+  const qTo = searchParams.get('to');
+  const qDate = searchParams.get('date');
+
+  const [form, setForm] = useState<HomeSearchState>(() => {
+    const from = searchParams.get('from')?.trim() ?? '';
+    const to = searchParams.get('to')?.trim() ?? '';
+    const raw = searchParams.get('date')?.trim() ?? '';
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayISO();
+    return { from, to, date, passengers: '1' };
   });
 
   const [loading, setLoading] = useState(true);
@@ -48,6 +54,18 @@ function HomeBookingSection() {
   const canSearch = Boolean(form.from.trim() && form.to.trim() && form.date);
 
   useEffect(() => {
+    const from = qFrom?.trim() ?? '';
+    const to = qTo?.trim() ?? '';
+    const date = qDate?.trim() ?? '';
+    if (!from || !to) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    setForm((p) => {
+      if (p.from === from && p.to === to && p.date === date) return p;
+      return { ...p, from, to, date };
+    });
+  }, [qFrom, qTo, qDate]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       setError('');
@@ -55,11 +73,15 @@ function HomeBookingSection() {
       try {
         const params = new URLSearchParams({
           date: form.date,
-          routeLimit: '30',
-          tripLimit: '60',
-          maxDeparturesPerRoute: '4',
+          routeLimit: '40',
+          tripLimit: '80',
+          maxDeparturesPerRoute: '8',
           sort: 'departure',
         });
+        if (form.from.trim() && form.to.trim()) {
+          params.set('from', form.from.trim());
+          params.set('to', form.to.trim());
+        }
         const res = await fetch(`/api/home/discover?${params.toString()}`, { cache: 'no-store' });
         const json = (await res.json()) as { success?: boolean; data?: AvailableRoute[]; error?: string };
         if (!res.ok || !json.success) throw new Error(json.error || 'Failed to load schedules');
@@ -76,7 +98,7 @@ function HomeBookingSection() {
     return () => {
       cancelled = true;
     };
-  }, [form.date]);
+  }, [form.date, form.from, form.to]);
 
   async function runSearch() {
     if (!canSearch) {
@@ -134,7 +156,10 @@ function HomeBookingSection() {
     profile?.user_type === 'transporter' && profile.transporter_approval_status === 'approved';
 
   return (
-    <section className="border-b border-border/70 bg-linear-to-b from-primary/5 via-background to-background">
+    <section
+      id="book"
+      className="border-b border-border/70 bg-linear-to-b from-primary/5 via-background to-background scroll-mt-20"
+    >
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           <div className="space-y-4 lg:col-span-5">
@@ -321,6 +346,20 @@ function HomeBookingSection() {
   );
 }
 
+function HomeBookingSectionFallback() {
+  return (
+    <section className="border-b border-border/70 bg-linear-to-b from-primary/5 via-background to-background">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <Skeleton className="h-10 w-2/3 max-w-md" />
+        <div className="mt-6 grid gap-6 lg:grid-cols-12">
+          <Skeleton className="h-64 rounded-xl lg:col-span-5" />
+          <Skeleton className="h-96 rounded-xl lg:col-span-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { user, profile, isLoading } = useAuth();
@@ -337,7 +376,9 @@ export default function HomePage() {
 
       <HomeAdBanner />
 
-      <HomeBookingSection />
+      <Suspense fallback={<HomeBookingSectionFallback />}>
+        <HomeBookingSection />
+      </Suspense>
 
       {/* Features Section */}
       <section className="bg-secondary/30 py-20">

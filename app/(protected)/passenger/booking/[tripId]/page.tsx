@@ -621,7 +621,7 @@ export default function BookingPage() {
       {isMobile && (
         <>
           <div
-            className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 px-4 py-3 safe-area-pb"
+            className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 px-4 py-3"
             style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
           >
             <div className="flex items-center gap-3 max-w-6xl mx-auto">

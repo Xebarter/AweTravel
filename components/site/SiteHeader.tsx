@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { getHomePathForProfile } from '@/lib/post-auth-redirect';
+import { HomeHeaderTripSearch } from '@/components/site/HomeHeaderTripSearch';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -15,7 +16,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { Menu, X } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -24,53 +25,33 @@ export function SiteHeader() {
 
   const onLogin = pathname === '/login';
   const onSignup = pathname === '/signup';
-
-  const links = useMemo(
-    () => [
-      { href: '/', label: 'Home' },
-      { href: '/terms', label: 'Terms' },
-      { href: '/privacy', label: 'Privacy' },
-    ],
-    [],
-  );
+  const onHome = pathname === '/';
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-2 transition-opacity hover:opacity-90">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent sm:h-10 sm:w-10">
-            <span className="text-base font-bold text-white sm:text-lg">A</span>
-          </div>
-          <span className="truncate text-lg font-bold text-foreground sm:text-2xl">
-            AweTravel
-          </span>
-        </Link>
+    <>
+      {/* Upper: sticky on all breakpoints — on mobile (home) holds logo + menu only; search is in the row below. */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:px-8">
+          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 transition-opacity hover:opacity-90">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent sm:h-10 sm:w-10">
+              <span className="text-base font-bold text-white sm:text-lg">A</span>
+            </div>
+            <span className="truncate text-lg font-bold text-foreground sm:text-2xl">
+              AweTravel
+            </span>
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
-          {links.map((l) => {
-            const active = pathname === l.href;
-            return (
-              <Link key={l.href} href={l.href}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    active
-                      ? 'bg-muted/40 text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {l.label}
-                </Button>
-              </Link>
-            );
-          })}
-        </nav>
+          {onHome ? (
+            <div className="hidden min-w-0 flex-1 justify-center px-2 md:flex">
+              <HomeHeaderTripSearch />
+            </div>
+          ) : (
+            <div className="hidden flex-1 md:block" aria-hidden />
+          )}
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Desktop auth actions */}
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {/* Desktop auth actions */}
+            <div className="hidden items-center gap-3 md:flex">
             {isLoading ? (
               <div className="h-9 w-24 animate-pulse rounded-md bg-muted" aria-hidden />
             ) : user ? (
@@ -101,10 +82,10 @@ export function SiteHeader() {
                 </Button>
               </>
             )}
-          </div>
+            </div>
 
-          {/* Mobile menu */}
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            {/* Mobile menu */}
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
                 type="button"
@@ -116,44 +97,21 @@ export function SiteHeader() {
                 <Menu className="size-4" aria-hidden />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-sm">
-              <SheetHeader className="text-left">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <SheetTitle className="truncate">AweTravel</SheetTitle>
-                    <SheetDescription>Navigate and manage your account</SheetDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setMobileOpen(false)}
-                    aria-label="Close menu"
-                  >
-                    <X className="size-4" aria-hidden />
-                  </Button>
-                </div>
+            <SheetContent
+              side="right"
+              className={cn(
+                'flex h-dvh max-h-dvh flex-col gap-0 overflow-y-auto p-0 shadow-2xl',
+                'border-l border-border/80 bg-background',
+              )}
+            >
+              <SheetHeader className="space-y-1 border-b border-border/70 bg-muted/25 px-5 pb-4 pt-12 text-left">
+                <SheetTitle className="text-base font-semibold tracking-tight">Menu</SheetTitle>
+                <SheetDescription className="text-xs leading-relaxed">
+                  Sign in, create an account, or go to your dashboard.
+                </SheetDescription>
               </SheetHeader>
 
-              <div className="mt-6 grid gap-2">
-                {links.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      'rounded-lg border border-border/70 bg-background px-4 py-3 text-sm font-medium',
-                      pathname === l.href
-                        ? 'text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </div>
-
-              <div className="mt-6 grid gap-2 border-t border-border/70 pt-6">
+              <div className="grid gap-3 px-5 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
                 {isLoading ? (
                   <div className="h-11 w-full animate-pulse rounded-md bg-muted" aria-hidden />
                 ) : user ? (
@@ -193,9 +151,19 @@ export function SiteHeader() {
                 )}
               </div>
             </SheetContent>
-          </Sheet>
+            </Sheet>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Lower (mobile only, home only): scrolls with the page — trip search */}
+      {onHome ? (
+        <div className="border-b border-border bg-background md:hidden">
+          <div className="mx-auto max-w-7xl px-4 pb-3 pt-0.5 sm:px-6">
+            <HomeHeaderTripSearch className="max-w-none" />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
