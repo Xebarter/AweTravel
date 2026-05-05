@@ -289,14 +289,37 @@ function SearchContent() {
   ];
 
   useEffect(() => {
-    // In this repo, routes are still mocked. Keep the UX realistic by
-    // only showing results once the user provided criteria.
-    setLoading(true);
-    const t = setTimeout(() => {
-      setResults(hasSearchCriteria ? mockRoutes : []);
-      setLoading(false);
-    }, hasSearchCriteria ? 450 : 0);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    async function run() {
+      if (!hasSearchCriteria) {
+        setResults([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const qs = new URLSearchParams({ from: origin.trim(), to: destination.trim(), date }).toString();
+        const res = await fetch(`/api/passenger/search?${qs}`, { cache: 'no-store' });
+        const json = (await res.json()) as {
+          success?: boolean;
+          data?: AvailableRoute[];
+          error?: string;
+        };
+        if (!res.ok || !json.success) throw new Error(json.error || 'Failed to search trips');
+        if (cancelled) return;
+        setResults(json.data ?? []);
+      } catch {
+        if (cancelled) return;
+        setResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, [hasSearchCriteria, origin, destination, date]);
 
   const filteredResults = results.filter((r) => {
