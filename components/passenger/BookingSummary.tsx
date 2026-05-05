@@ -52,7 +52,7 @@ export function BookingSummary({
               <MapPin className="h-4 w-4 text-accent mt-0.5" />
               <div>
                 <p className="text-muted-foreground">Route</p>
-                <p className="font-medium text-foreground">
+                <p className="break-words font-medium text-foreground">
                   {route.route.origin_city} → {route.route.destination_city}
                 </p>
               </div>
@@ -84,11 +84,11 @@ export function BookingSummary({
           <div className="space-y-2 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Name</p>
-              <p className="font-medium text-foreground">{passengerName}</p>
+              <p className="break-words font-medium text-foreground">{passengerName}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Email</p>
-              <p className="font-medium text-foreground">{passengerEmail}</p>
+              <p className="break-words font-medium text-foreground">{passengerEmail}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Seat Number</p>

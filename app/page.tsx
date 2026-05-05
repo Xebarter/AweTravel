@@ -31,7 +31,6 @@ function todayISO() {
 }
 
 function HomeBookingSection() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { profile } = useAuth();
 
@@ -249,25 +248,6 @@ function HomeBookingSection() {
                   <Button type="button" className="h-11 w-full font-semibold shadow-sm sm:w-auto" onClick={() => void runSearch()} disabled={loading}>
                     <Search className="size-4" aria-hidden />
                     {loading ? 'Searching…' : 'Search schedules'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 w-full sm:w-auto"
-                    onClick={() => {
-                      const params = new URLSearchParams({
-                        from: form.from.trim(),
-                        to: form.to.trim(),
-                        date: form.date,
-                      });
-                      const url = `/passenger/search?${params.toString()}`;
-                      router.prefetch(url);
-                      router.push(url);
-                    }}
-                    disabled={!canSearch}
-                  >
-                    See full results
-                    <ArrowRight className="ml-2 size-4" aria-hidden />
                   </Button>
                 </div>
 

@@ -1,207 +1,132 @@
 /**
- * Paytota Payment Gateway Integration
- * Handles payment processing for AweTravel bookings
+ * Paytota (gate.paytota.com) — collections / purchases API.
+ * @see additems.txt (merchant docs)
  */
 
-export interface PaytotaPaymentRequest {
-  amount: number;
+export type PaytotaCreatePurchaseInput = {
+  bookingId: string;
+  amountMinor: number;
   currency: string;
-  reference: string;
-  customerEmail: string;
-  customerName: string;
-  description: string;
-  metadata?: Record<string, any>;
+  client: {
+    email: string;
+    full_name?: string;
+    phone?: string;
+    country?: string;
+  };
+  successRedirect: string;
+  failureRedirect: string;
+  cancelRedirect?: string;
+};
+
+export type PaytotaCreatePurchaseResult =
+  | { ok: true; id: string; checkout_url: string }
+  | { ok: false; message: string; status?: number };
+
+export type PaytotaPurchaseApiShape = {
+  id?: string;
+  status?: string;
+  reference?: string;
+  event_type?: string;
+  checkout_url?: string;
+  payment?: { amount?: number; currency?: string } | null;
+  purchase?: { total?: number; currency?: string };
+  client?: { email?: string };
+};
+
+function getBaseUrl(): string {
+  const raw = process.env.PAYTOTA_BASE_URL || 'https://gate.paytota.com';
+  return raw.replace(/\/$/, '');
 }
 
-export interface PaytotaPaymentResponse {
-  success: boolean;
-  reference: string;
-  authorizationUrl?: string;
-  message?: string;
+function getSecret(): string | undefined {
+  return process.env.PAYTOTA_SECRET_KEY || process.env.PAYTOTA_API_KEY;
 }
 
-export interface PaytotaVerifyResponse {
-  success: boolean;
-  status: 'success' | 'failed' | 'pending';
-  amount: number;
-  reference: string;
-  message?: string;
+function getBrandId(): string | undefined {
+  return process.env.PAYTOTA_BRAND_ID;
 }
 
-class PaytotaClient {
-  private apiKey: string;
-  private baseUrl: string = 'https://api.paytota.com/v1';
+export function isPaytotaConfigured(): boolean {
+  return Boolean(getSecret() && getBrandId());
+}
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+export async function createPaytotaPurchase(input: PaytotaCreatePurchaseInput): Promise<PaytotaCreatePurchaseResult> {
+  const secret = getSecret();
+  const brandId = getBrandId();
+  if (!secret || !brandId) {
+    return { ok: false, message: 'Paytota is not configured (missing secret or brand id)' };
   }
 
-  /**
-   * Initialize a payment request
-   */
-  async initializePayment(
-    request: PaytotaPaymentRequest
-  ): Promise<PaytotaPaymentResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/payments/initialize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+  const base = getBaseUrl();
+  const body: Record<string, unknown> = {
+    client: {
+      email: input.client.email,
+      ...(input.client.phone ? { phone: input.client.phone } : {}),
+      country: input.client.country || 'UG',
+      ...(input.client.full_name ? { full_name: input.client.full_name } : {}),
+    },
+    purchase: {
+      currency: input.currency,
+      products: [
+        {
+          name: `AweTravel booking ${input.bookingId.slice(0, 8)}`,
+          price: String(Math.max(0, Math.round(input.amountMinor))),
         },
-        body: JSON.stringify({
-          amount: request.amount,
-          currency: request.currency,
-          reference: request.reference,
-          customer_email: request.customerEmail,
-          customer_name: request.customerName,
-          description: request.description,
-          metadata: request.metadata,
-          callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
-        }),
-      });
+      ],
+    },
+    reference: input.bookingId,
+    skip_capture: false,
+    brand_id: brandId,
+    success_redirect: input.successRedirect,
+    failure_redirect: input.failureRedirect,
+    cancel_redirect: input.cancelRedirect ?? input.failureRedirect,
+  };
 
-      const data = await response.json();
+  const res = await fetch(`${base}/api/v1/purchases/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify(body),
+  });
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Payment initialization failed');
-      }
+  const data = (await res.json().catch(() => ({}))) as PaytotaPurchaseApiShape & {
+    detail?: string;
+    message?: string;
+  };
 
-      return {
-        success: true,
-        reference: data.reference,
-        authorizationUrl: data.authorization_url,
-      };
-    } catch (error) {
-      console.error('Paytota initialization error:', error);
-      return {
-        success: false,
-        reference: '',
-        message: error instanceof Error ? error.message : 'Payment initialization failed',
-      };
-    }
+  if (!res.ok) {
+    const msg =
+      (typeof data.detail === 'string' && data.detail) ||
+      (typeof data.message === 'string' && data.message) ||
+      `Paytota error (${res.status})`;
+    return { ok: false, message: msg, status: res.status };
   }
 
-  /**
-   * Verify a payment transaction
-   */
-  async verifyPayment(reference: string): Promise<PaytotaVerifyResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/payments/verify/${reference}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Payment verification failed');
-      }
-
-      return {
-        success: true,
-        status: data.status,
-        amount: data.amount,
-        reference: data.reference,
-      };
-    } catch (error) {
-      console.error('Paytota verification error:', error);
-      return {
-        success: false,
-        status: 'failed',
-        amount: 0,
-        reference: '',
-        message: error instanceof Error ? error.message : 'Payment verification failed',
-      };
-    }
+  const id = typeof data.id === 'string' ? data.id : '';
+  const checkout_url = typeof data.checkout_url === 'string' ? data.checkout_url : '';
+  if (!id || !checkout_url) {
+    return { ok: false, message: 'Invalid Paytota response (missing id or checkout_url)' };
   }
 
-  /**
-   * Refund a payment
-   */
-  async refundPayment(reference: string, amount?: number): Promise<PaytotaPaymentResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/payments/${reference}/refund`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          amount: amount,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Refund failed');
-      }
-
-      return {
-        success: true,
-        reference: data.reference,
-      };
-    } catch (error) {
-      console.error('Paytota refund error:', error);
-      return {
-        success: false,
-        reference: '',
-        message: error instanceof Error ? error.message : 'Refund failed',
-      };
-    }
-  }
+  return { ok: true, id, checkout_url };
 }
 
-// Initialize Paytota client
-const paytotaApiKey = process.env.PAYTOTA_API_KEY;
+export async function fetchPaytotaPurchase(purchaseId: string): Promise<PaytotaPurchaseApiShape | null> {
+  const secret = getSecret();
+  if (!secret) return null;
 
-let paytotaClient: PaytotaClient | null = null;
+  const base = getBaseUrl();
+  const res = await fetch(`${base}/api/v1/purchases/${encodeURIComponent(purchaseId)}/`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${secret}`,
+    },
+    cache: 'no-store',
+  });
 
-if (!paytotaApiKey) {
-  console.warn('PAYTOTA_API_KEY not configured. Payment features will be limited.');
-} else {
-  paytotaClient = new PaytotaClient(paytotaApiKey);
-}
-
-export function getPaytotaClient(): PaytotaClient | null {
-  return paytotaClient;
-}
-
-export function initializePayment(request: PaytotaPaymentRequest) {
-  if (!paytotaClient) {
-    return {
-      success: false,
-      reference: '',
-      message: 'Payment gateway not configured',
-    };
-  }
-  return paytotaClient.initializePayment(request);
-}
-
-export function verifyPayment(reference: string) {
-  if (!paytotaClient) {
-    return {
-      success: false,
-      status: 'failed' as const,
-      amount: 0,
-      reference: '',
-      message: 'Payment gateway not configured',
-    };
-  }
-  return paytotaClient.verifyPayment(reference);
-}
-
-export function refundPayment(reference: string, amount?: number) {
-  if (!paytotaClient) {
-    return {
-      success: false,
-      reference: '',
-      message: 'Payment gateway not configured',
-    };
-  }
-  return paytotaClient.refundPayment(reference, amount);
+  if (!res.ok) return null;
+  return (await res.json().catch(() => null)) as PaytotaPurchaseApiShape | null;
 }

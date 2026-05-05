@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,23 +12,29 @@ import { formatCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
 import { fetchPublicPlatformSettings } from '@/lib/platform-settings/public-client';
-import { CheckCircle, ChevronLeft } from 'lucide-react';
+import { getSupabaseAuthHeaderInit } from '@/lib/supabase';
+import { ChevronLeft, Loader2 } from 'lucide-react';
+
+type PreviewData = {
+  totalMinor: number;
+  platformFeeBps: number;
+  ticketMinor: number;
+  platformFeeMinor: number;
+};
 
 function PaymentContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { profile } = useAuth();
-  const [paymentSucceeded, setPaymentSucceeded] = useState(false);
 
   const tripId = searchParams.get('tripId') || '';
   const seatId = searchParams.get('seatId') || '';
-
-  useEffect(() => {
-    if (!tripId) return;
-    router.prefetch(`/passenger/booking-confirmation?tripId=${tripId}`);
-  }, [tripId, router]);
+  const bookingId = searchParams.get('bookingId') || '';
+  const guestEmailParam = searchParams.get('guestEmail') || '';
 
   const [platformFeeBps, setPlatformFeeBps] = useState(DEFAULT_PLATFORM_FEE_BPS);
+  const [preview, setPreview] = useState<PreviewData | null>(null);
+  const [previewError, setPreviewError] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,39 +47,58 @@ function PaymentContent() {
     };
   }, []);
 
-  const bookingAmount = 7500;
-  const ticketPrice = Math.round(bookingAmount / (1 + platformFeeBps / 10000));
-  const platformFee = bookingAmount - ticketPrice;
-
   useEffect(() => {
-    if (!paymentSucceeded || !tripId) return;
-    const t = window.setTimeout(() => {
-      router.prefetch(`/passenger/booking-confirmation?tripId=${tripId}`);
-      router.push(`/passenger/booking-confirmation?tripId=${tripId}`);
-    }, 2000);
-    return () => window.clearTimeout(t);
-  }, [paymentSucceeded, tripId, router]);
+    if (!bookingId) {
+      setPreview(null);
+      setPreviewError('');
+      return;
+    }
 
-  if (paymentSucceeded) {
-    return (
-      <div className="min-h-screen bg-background px-4 py-12 sm:px-6">
-        <Card className="mx-auto w-full max-w-md border-border/80">
-          <CardContent className="pt-10 pb-10 text-center">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <CheckCircle className="h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            </div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Payment successful</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Your booking has been confirmed. Redirecting to confirmation page...
-            </p>
-            <div className="mt-6 h-1 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full animate-pulse bg-primary/30 dark:bg-primary/40" aria-hidden />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+    let cancelled = false;
+    void (async () => {
+      setPreviewLoading(true);
+      setPreviewError('');
+      try {
+        const q = new URLSearchParams({ bookingId });
+        if (!profile?.email && guestEmailParam.trim()) {
+          q.set('guestEmail', guestEmailParam.trim());
+        }
+        const authHeaders = await getSupabaseAuthHeaderInit();
+        const res = await fetch(`/api/payments/preview?${q.toString()}`, {
+          credentials: 'include',
+          headers: { ...authHeaders },
+        });
+        const json = (await res.json()) as {
+          success?: boolean;
+          error?: string;
+          data?: {
+            totalMinor: number;
+            platformFeeBps: number;
+            ticketMinor: number;
+            platformFeeMinor: number;
+          };
+        };
+        if (!res.ok || !json.success || !json.data) {
+          throw new Error(json.error || 'Could not load checkout summary');
+        }
+        if (!cancelled) setPreview(json.data);
+      } catch (e) {
+        if (!cancelled) {
+          setPreview(null);
+          setPreviewError(e instanceof Error ? e.message : 'Could not load checkout summary');
+        }
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, guestEmailParam, profile?.email]);
+
+  const guestEmailForApi =
+    profile?.email?.trim() ? undefined : guestEmailParam.trim() ? guestEmailParam.trim() : undefined;
 
   return (
     <div className="min-h-screen bg-background pb-12">
@@ -90,7 +115,8 @@ function PaymentContent() {
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Payment</h1>
             <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Secure checkout. Review your order summary, then enter your card details to confirm.
+              You’ll be redirected to Paytota to pay securely. After payment, you’ll return here and we’ll confirm your
+              booking.
             </p>
           </div>
 
@@ -106,7 +132,8 @@ function PaymentContent() {
             <CardHeader>
               <CardTitle className="text-lg">No trip selected</CardTitle>
               <CardDescription>
-                This page expects a <code className="font-mono">tripId</code> in the URL. Start from search/bookings to pay for a seat.
+                This page expects a <code className="font-mono">tripId</code> in the URL. Start from search/bookings to
+                pay for a seat.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
@@ -118,16 +145,49 @@ function PaymentContent() {
               </Button>
             </CardContent>
           </Card>
-        ) : (
+        ) : !bookingId ? (
+          <Card className="border-border/80">
+            <CardHeader>
+              <CardTitle className="text-lg">No booking to pay</CardTitle>
+              <CardDescription>
+                Start from a trip, pick a seat, and confirm your booking. Then you can pay here.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href={tripId ? `/passenger/booking/${tripId}` : '/passenger/search'}>Back to booking</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : previewLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" aria-hidden />
+            <span>Loading checkout…</span>
+          </div>
+        ) : previewError ? (
+          <Card className="border-destructive/40">
+            <CardHeader>
+              <CardTitle className="text-lg">Could not open checkout</CardTitle>
+              <CardDescription>{previewError}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <Link href={`/passenger/booking/${tripId}`}>Back to booking</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : preview ? (
           <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
             <section className="lg:col-span-7">
               <PaymentForm
                 tripId={tripId}
                 seatId={seatId || undefined}
-                platformFeeBps={platformFeeBps}
-                totalAmount={bookingAmount}
-                onPaymentSucceeded={() => setPaymentSucceeded(true)}
-                confirmationEmailHint={profile?.email ?? undefined}
+                bookingId={bookingId}
+                platformFeeBps={preview.platformFeeBps}
+                totalAmount={preview.totalMinor}
+                guestEmail={guestEmailForApi}
+                returnTripId={tripId}
+                confirmationEmailHint={profile?.email?.trim() || guestEmailParam.trim() || undefined}
               />
             </section>
 
@@ -154,24 +214,24 @@ function PaymentContent() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Ticket price</span>
-                      <span className="font-medium text-foreground">{formatCurrency(ticketPrice)}</span>
+                      <span className="font-medium text-foreground">{formatCurrency(preview.ticketMinor)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Platform fee</span>
-                      <span className="font-medium text-foreground">{formatCurrency(platformFee)}</span>
+                      <span className="font-medium text-foreground">{formatCurrency(preview.platformFeeMinor)}</span>
                     </div>
                     <div className="border-t border-border/80 pt-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-foreground">Total</span>
-                        <span className="text-lg font-semibold text-foreground">{formatCurrency(bookingAmount)}</span>
+                        <span className="text-lg font-semibold text-foreground">{formatCurrency(preview.totalMinor)}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-3 text-xs text-muted-foreground">
                     A confirmation email will be sent to{' '}
-                    <span className={cn('font-medium text-foreground', !profile?.email && 'text-muted-foreground')}>
-                      {profile?.email ?? 'the email you used when booking'}
+                    <span className={cn('font-medium text-foreground', !profile?.email && !guestEmailParam && 'text-muted-foreground')}>
+                      {profile?.email?.trim() || guestEmailParam.trim() || 'the email you used when booking'}
                     </span>
                     .
                   </div>
@@ -179,7 +239,7 @@ function PaymentContent() {
               </Card>
             </aside>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

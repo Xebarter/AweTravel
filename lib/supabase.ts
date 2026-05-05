@@ -27,6 +27,27 @@ export async function getCurrentUser() {
   return user;
 }
 
+/**
+ * For `fetch` to Route Handlers: sends the access token so the server can authenticate even when
+ * cookie-based `getUser()` is empty. Calls `getUser()` first so the session is refreshed when needed.
+ */
+export async function getSupabaseAuthHeaderInit(): Promise<HeadersInit> {
+  const {
+    data: { session: s0 },
+  } = await supabase.auth.getSession();
+  if (s0?.access_token) {
+    return { Authorization: `Bearer ${s0.access_token}` };
+  }
+
+  await supabase.auth.getUser();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return {};
+  return { Authorization: `Bearer ${session.access_token}` };
+}
+
 // Helper to get user profile
 export async function getUserProfile(userId: string) {
   const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();

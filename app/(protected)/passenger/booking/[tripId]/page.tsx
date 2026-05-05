@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
@@ -25,9 +26,10 @@ import { formatCurrency } from '@/lib/currency';
 import type { Seat, AvailableRoute, PassengerBookingListItem } from '@/lib/types';
 import { DEFAULT_PLATFORM_FEE_BPS } from '@/lib/platform-settings/constants';
 import { fetchPublicPlatformSettings, platformFeeFromBps } from '@/lib/platform-settings/public-client';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { format, isValid, parse } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -322,6 +324,9 @@ export default function BookingPage() {
       date: travelDate,
     });
     payQ.set('bookingId', bookingUuid);
+    if (!profile?.email?.trim() && guestEmail.trim()) {
+      payQ.set('guestEmail', guestEmail.trim());
+    }
     const payUrl = `/passenger/payment?${payQ.toString()}`;
     router.prefetch(payUrl);
 
@@ -334,8 +339,16 @@ export default function BookingPage() {
 
   const dateLabel = formatTripDateLabel(travelDate);
 
+  const mobileBookingSheetOpen = summaryOpen || paymentOpen;
   const step2Active = isMobile ? summaryOpen || paymentOpen : step === 'summary' || step === 'payment';
   const step3Active = isMobile ? paymentOpen : step === 'payment';
+
+  const mobileFullSheetClass = cn(
+    'mt-0 flex h-[100dvh] max-h-[100dvh] flex-col rounded-none border-0 shadow-none ring-1 ring-border/60',
+    'data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-[100dvh]',
+    'pt-[max(0.25rem,env(safe-area-inset-top))]',
+  );
+  const mobileSheetScrollPadding = 'pb-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.75rem))]';
 
   if (tripLoading) {
     return (
@@ -436,7 +449,7 @@ export default function BookingPage() {
     <div className="min-h-screen pb-24 md:pb-12 bg-linear-to-br from-background to-secondary/30">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Booking</h1>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">Complete Your Booking</h1>
           {existingBooking && existingBooking.status !== 'pending' ? (
             <p className="mb-4 text-sm text-amber-700 dark:text-amber-400">
               This booking is {existingBooking.status}. Seat changes here are only available for pending trips.
@@ -451,42 +464,48 @@ export default function BookingPage() {
               to keep trips in one place.
             </p>
           ) : null}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full font-bold bg-accent text-accent-foreground">
-              1
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent font-bold text-accent-foreground">
+                1
+              </div>
+              <span className="text-sm font-medium">Select seat</span>
             </div>
-            <span className="text-sm font-medium">Select Seat</span>
 
-            <div className="h-px flex-1 bg-border"></div>
+            <div className="hidden h-px min-w-4 flex-1 bg-border sm:block" aria-hidden />
 
-            <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-                step2Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
-              }`}
-            >
-              2
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
+                  step2Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+                }`}
+              >
+                2
+              </div>
+              <span className="text-sm font-medium">Review</span>
             </div>
-            <span className="text-sm font-medium">Review</span>
 
-            <div className="h-px flex-1 bg-border"></div>
+            <div className="hidden h-px min-w-4 flex-1 bg-border sm:block" aria-hidden />
 
-            <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-                step3Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
-              }`}
-            >
-              3
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
+                  step3Active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+                }`}
+              >
+                3
+              </div>
+              <span className="text-sm font-medium">Payment</span>
             </div>
-            <span className="text-sm font-medium">Payment</span>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-lg flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-            <p>{error}</p>
+        {error && !(isMobile && mobileBookingSheetOpen) ? (
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p className="text-sm leading-relaxed">{error}</p>
           </div>
-        )}
+        ) : null}
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
@@ -618,34 +637,36 @@ export default function BookingPage() {
         </div>
       </div>
 
-      {isMobile && (
+      {isMobile ? (
         <>
-          <div
-            className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 px-4 py-3"
-            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-          >
-            <div className="flex items-center gap-3 max-w-6xl mx-auto">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="font-semibold text-foreground truncate tabular-nums">
-                  {seatTotal != null ? formatCurrency(seatTotal) : '—'}
-                </p>
-                {selectedSeat ? (
-                  <p className="text-xs text-muted-foreground truncate">Seat {selectedSeat.seat_number}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Select a seat</p>
-                )}
+          {!mobileBookingSheetOpen ? (
+            <div
+              className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 px-4 py-3"
+              style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+            >
+              <div className="mx-auto flex max-w-6xl items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="truncate font-semibold tabular-nums text-foreground">
+                    {seatTotal != null ? formatCurrency(seatTotal) : '—'}
+                  </p>
+                  {selectedSeat ? (
+                    <p className="truncate text-xs text-muted-foreground">Seat {selectedSeat.seat_number}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Select a seat</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleProceedToSummary}
+                  disabled={!selectedSeat}
+                  className="shrink-0 rounded-lg bg-accent px-5 py-3 font-medium text-accent-foreground transition hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground"
+                >
+                  Continue
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleProceedToSummary}
-                disabled={!selectedSeat}
-                className="shrink-0 px-5 py-3 rounded-lg bg-accent hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground font-medium text-accent-foreground transition"
-              >
-                Continue
-              </button>
             </div>
-          </div>
+          ) : null}
 
           <Drawer
             open={summaryOpen}
@@ -655,44 +676,82 @@ export default function BookingPage() {
               if (!open) setPaymentOpen(false);
             }}
           >
-            <DrawerContent className="max-h-[92vh] overflow-y-auto">
-              <DrawerHeader className="text-left">
-                <DrawerTitle>Review booking</DrawerTitle>
-                <DrawerDescription>Confirm your details before paying.</DrawerDescription>
-              </DrawerHeader>
-              <div className="px-4 pb-6">{summaryPanel}</div>
+            <DrawerContent className={mobileFullSheetClass}>
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/70 bg-background px-4 pb-3 sm:px-5">
+                <DrawerHeader className="flex-1 space-y-1 p-0 text-left">
+                  <DrawerTitle className="text-lg">Review booking</DrawerTitle>
+                  <DrawerDescription>Confirm your details before paying.</DrawerDescription>
+                </DrawerHeader>
+                <DrawerClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mt-0.5 size-9 shrink-0 rounded-full"
+                    aria-label="Close"
+                  >
+                    <X className="size-5" />
+                  </Button>
+                </DrawerClose>
+              </div>
+
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div
+                  className={cn(
+                    'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 sm:px-5',
+                    mobileSheetScrollPadding,
+                  )}
+                >
+                  {error && !paymentOpen ? (
+                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
+                      <AlertCircle className="mt-0.5 size-5 shrink-0" />
+                      <p className="text-sm leading-snug">{error}</p>
+                    </div>
+                  ) : null}
+                  {summaryPanel}
+                </div>
+              </div>
 
               <DrawerNestedRoot open={paymentOpen} onOpenChange={setPaymentOpen}>
-                <DrawerContent className="max-h-[85vh] overflow-y-auto px-4 pb-8 pt-2">
-                  <DrawerHeader className="text-left">
-                    <DrawerTitle>Payment</DrawerTitle>
-                    <DrawerDescription>Enter your card details to complete checkout.</DrawerDescription>
-                  </DrawerHeader>
-                  {selectedSeat ? (
-                    <PaymentForm
-                      embedded
-                      tripId={tripId}
-                      seatId={selectedSeat.id}
-                      bookingId={paymentBookingId ?? undefined}
-                      platformFeeBps={platformFeeBps}
-                      totalAmount={
-                        selectedSeat.base_price + platformFeeFromBps(selectedSeat.base_price, platformFeeBps)
-                      }
-                      confirmationEmailHint={displayEmail || undefined}
-                      onCancel={() => setPaymentOpen(false)}
-                      onSuccess={() => {
-                        setPaymentOpen(false);
-                        setSummaryOpen(false);
-                        router.push(`/passenger/booking-confirmation?tripId=${tripId}`);
-                      }}
-                    />
-                  ) : null}
+                <DrawerContent className={cn(mobileFullSheetClass, 'z-60')}>
+                  <div className="flex shrink-0 items-start gap-3 border-b border-border/70 bg-background px-4 pb-3 sm:px-5">
+                    <DrawerHeader className="min-w-0 flex-1 space-y-1 p-0 text-left">
+                      <DrawerTitle className="text-lg">Payment</DrawerTitle>
+                      <DrawerDescription>Continue to Paytota to complete payment.</DrawerDescription>
+                    </DrawerHeader>
+                  </div>
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div
+                      className={cn(
+                        'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 sm:px-5',
+                        mobileSheetScrollPadding,
+                      )}
+                    >
+                      {selectedSeat ? (
+                        <PaymentForm
+                          embedded
+                          tripId={tripId}
+                          seatId={selectedSeat.id}
+                          bookingId={paymentBookingId ?? undefined}
+                          platformFeeBps={platformFeeBps}
+                          totalAmount={
+                            selectedSeat.base_price +
+                            platformFeeFromBps(selectedSeat.base_price, platformFeeBps)
+                          }
+                          guestEmail={profile?.email?.trim() ? undefined : guestEmail.trim() || undefined}
+                          returnTripId={tripId}
+                          confirmationEmailHint={displayEmail || undefined}
+                          onCancel={() => setPaymentOpen(false)}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                 </DrawerContent>
               </DrawerNestedRoot>
             </DrawerContent>
           </Drawer>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
