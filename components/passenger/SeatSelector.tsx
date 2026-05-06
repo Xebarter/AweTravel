@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
 import type { RouteType, Seat } from '@/lib/types';
@@ -10,6 +9,8 @@ import { AlertCircle } from 'lucide-react';
 interface SeatSelectorProps {
   seats: Seat[];
   bookedSeats?: string[];
+  /** Controlled selection (matches parent booking state, including resumed bookings). */
+  selectedSeat?: Seat | null;
   onSelect: (seat: Seat) => void;
   vehicleType: RouteType;
   passengerCapacity?: number;
@@ -20,16 +21,14 @@ interface SeatSelectorProps {
 export function SeatSelector({
   seats,
   bookedSeats = [],
+  selectedSeat = null,
   onSelect,
   vehicleType,
   passengerCapacity,
   registration,
   routeLabel,
 }: SeatSelectorProps) {
-  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
-
   const handleSeatClick = (seat: Seat) => {
-    setSelectedSeat(seat);
     onSelect(seat);
   };
 
@@ -38,7 +37,8 @@ export function SeatSelector({
       <CardHeader>
         <CardTitle>Select Your Seat</CardTitle>
         <CardDescription>
-          Tap a seat on the vehicle layout — front rows are toward the top.
+          Tap a seat on the layout (front rows are toward the top). We&apos;ll reserve it and move you to secure checkout
+          when your details are complete.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { LayoutDashboard, LogOut, Settings, Ticket, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
+import { AppLogoMark } from '@/components/site/AppLogoMark';
 
 export function DashboardHeader() {
   const router = useRouter();
@@ -26,9 +27,7 @@ export function DashboardHeader() {
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 transition hover:opacity-80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
-              <span className="text-sm font-bold text-white">A</span>
-            </div>
+            <AppLogoMark size={32} className="h-8 w-8 rounded-lg bg-accent/10 ring-1 ring-border/60" />
             <span className="hidden font-semibold text-foreground sm:inline">AweTravel</span>
           </Link>
         </div>

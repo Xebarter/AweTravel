@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Montserrat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
@@ -12,26 +12,25 @@ const montserrat = Montserrat({
 })
 
 export const metadata: Metadata = {
-  title: 'AweTravel - Digital Transport Marketplace',
-  description: 'Book your travel tickets online with AweTravel - connecting passengers and transport companies',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+  title: {
+    default: 'AweTravel — Digital transport marketplace',
+    template: '%s — AweTravel',
   },
+  description:
+    'Book travel tickets online with AweTravel — search routes, compare fares, and complete bookings with verified operators.',
+  applicationName: 'AweTravel',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'AweTravel',
+    statusBarStyle: 'default',
+  },
+  /** Favicon, `app/icon.*`, and `app/apple-icon.png` are picked up automatically by Next.js. */
+}
+
+export const viewport: Viewport = {
+  themeColor: '#ea580c',
+  colorScheme: 'light dark',
 }
 
 export default function RootLayout({

@@ -9,6 +9,7 @@ import { LogOut, Settings, User, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { getHomePathForProfile } from '@/lib/post-auth-redirect';
+import { AppLogoMark } from '@/components/site/AppLogoMark';
 
 function isPassengerNavActive(href: string, pathname: string): boolean {
   if (href === '/passenger/dashboard') {
@@ -99,10 +100,8 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href={getDashboardUrl()} className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center font-bold text-white">
-              A
-            </div>
-            <span className="font-bold text-foreground hidden sm:inline">AweTravel</span>
+            <AppLogoMark size={32} className="h-8 w-8 rounded-lg bg-accent/10 ring-1 ring-border/60" />
+            <span className="hidden font-bold text-foreground sm:inline">AweTravel</span>
           </Link>
 
           {/* Desktop Navigation */}

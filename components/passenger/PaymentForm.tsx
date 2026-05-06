@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/currency';
 import { getSupabaseAuthHeaderInit } from '@/lib/supabase';
-import { AlertCircle, ExternalLink, Lock } from 'lucide-react';
+import { AlertCircle, CreditCard, ExternalLink, Lock, Sparkles } from 'lucide-react';
 
 const MOCK_TOTAL_FALLBACK = 7500;
 
@@ -101,9 +101,9 @@ export function PaymentForm({
         </Alert>
       ) : null}
 
-      <p className="text-sm text-muted-foreground">
-        You’ll complete payment on Paytota’s secure page (cards, mobile money, and other methods your operator enables).
-        After paying, you’ll return here to see your confirmation.
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        You’ll complete payment on Paytota’s secure page — cards, mobile money, and other methods your operator enables.
+        After paying, you’ll return here while we finalize your confirmation.
       </p>
 
       {embedded ? (
@@ -124,7 +124,7 @@ export function PaymentForm({
             <p className="text-xs text-muted-foreground font-mono">Booking ref: {bookingId}</p>
           ) : null}
           {confirmationEmailHint ? (
-            <p className="break-words text-xs text-muted-foreground">
+            <p className="wrap-break-word text-xs text-muted-foreground">
               Receipt goes to{' '}
               <span className="font-medium text-foreground">{confirmationEmailHint}</span>.
             </p>
@@ -132,26 +132,32 @@ export function PaymentForm({
         </div>
       ) : null}
 
-      <Alert className="border-border/70">
-        <Lock className="h-4 w-4 text-foreground/70" aria-hidden />
+      <Alert className="border-primary/20 bg-primary/5">
+        <Lock className="h-4 w-4 text-primary" aria-hidden />
         <AlertTitle>Secure checkout</AlertTitle>
-        <AlertDescription>
-          AweTravel does not collect card or mobile-money PINs. Paytota handles payment details on their hosted checkout.
+        <AlertDescription className="text-muted-foreground">
+          AweTravel does not collect card or mobile-money PINs. Paytota handles payment details on their hosted page.
         </AlertDescription>
       </Alert>
 
       <div className="space-y-3">
-        <Button type="button" disabled={loading} className="w-full gap-2" onClick={() => void startCheckout()}>
+        <Button
+          type="button"
+          size="lg"
+          disabled={loading}
+          className="h-12 w-full gap-2 text-base font-semibold shadow-md shadow-primary/20"
+          onClick={() => void startCheckout()}
+        >
           {loading ? (
             'Redirecting…'
           ) : (
             <>
               Pay {formatCurrency(bookingAmount)}
-              <ExternalLink className="size-4 opacity-80" aria-hidden />
+              <ExternalLink className="size-4 opacity-90" aria-hidden />
             </>
           )}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
           By continuing, you agree to AweTravel&apos;s payment terms and Paytota&apos;s checkout policies.
         </p>
       </div>
@@ -163,12 +169,24 @@ export function PaymentForm({
   }
 
   return (
-    <Card className="border-border/80 shadow-sm">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-lg">Pay with Paytota</CardTitle>
-        <CardDescription>Hosted checkout — you’ll be redirected to complete payment.</CardDescription>
+    <Card className="overflow-hidden border-border/80 shadow-lg ring-1 ring-black/5 dark:ring-white/10">
+      <CardHeader className="relative space-y-0 border-b border-border/60 bg-linear-to-br from-muted/40 via-background to-background px-6 py-6">
+        <div className="pointer-events-none absolute right-4 top-4 opacity-[0.07] dark:opacity-[0.12]" aria-hidden>
+          <Sparkles className="size-24 text-primary" strokeWidth={1} />
+        </div>
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary shadow-inner">
+            <CreditCard className="size-6" aria-hidden />
+          </div>
+          <div className="space-y-1.5">
+            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">Pay with Paytota</CardTitle>
+            <CardDescription className="text-base leading-relaxed">
+              Hosted checkout — you’ll be redirected to complete payment in a few seconds.
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>{formBody}</CardContent>
+      <CardContent className="px-6 py-6 sm:px-8 sm:py-8">{formBody}</CardContent>
     </Card>
   );
 }

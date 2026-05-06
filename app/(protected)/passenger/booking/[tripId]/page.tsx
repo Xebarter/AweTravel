@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -81,6 +81,11 @@ export default function BookingPage() {
 
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
+  /** User closed the mobile payment sheet — don’t immediately reopen until they change seat or tap Pay again. */
+  const [userClosedPaymentSheet, setUserClosedPaymentSheet] = useState(false);
+
+  const paymentFlowLockRef = useRef(false);
+  const proceedToPaymentRef = useRef<() => Promise<void>>(async () => {});
 
   const [route, setRoute] = useState<AvailableRoute | null>(null);
   const [bookedSeatCodes, setBookedSeatCodes] = useState<string[]>([]);
@@ -201,6 +206,7 @@ export default function BookingPage() {
   const displayEmail = profile?.email?.trim() || guestEmail.trim();
 
   const handleSeatSelect = useCallback((seat: Seat) => {
+    setUserClosedPaymentSheet(false);
     setSelectedSeat(seat);
     setError('');
   }, []);
@@ -221,30 +227,72 @@ export default function BookingPage() {
       }
     }
 
+    if (paymentFlowLockRef.current) return;
+    paymentFlowLockRef.current = true;
+
     setError('');
-    const bookingUuid = await confirmBookingAndGetId();
-    if (!bookingUuid) return;
+    try {
+      const bookingUuid = await confirmBookingAndGetId();
+      if (!bookingUuid) return;
 
-    setPaymentBookingId(bookingUuid);
+      setPaymentBookingId(bookingUuid);
 
-    const payQ = new URLSearchParams({
-      tripId,
-      seatId: selectedSeat.id,
-      date: travelDate,
-    });
-    payQ.set('bookingId', bookingUuid);
-    if (!profile?.email?.trim() && guestEmail.trim()) {
-      payQ.set('guestEmail', guestEmail.trim());
-    }
-    const payUrl = `/passenger/payment?${payQ.toString()}`;
-    router.prefetch(payUrl);
+      const payQ = new URLSearchParams({
+        tripId,
+        seatId: selectedSeat.id,
+        date: travelDate,
+      });
+      payQ.set('bookingId', bookingUuid);
+      if (!profile?.email?.trim() && guestEmail.trim()) {
+        payQ.set('guestEmail', guestEmail.trim());
+      }
+      const payUrl = `/passenger/payment?${payQ.toString()}`;
+      router.prefetch(payUrl);
 
-    if (isMobile) {
-      setPaymentOpen(true);
-    } else {
-      router.push(payUrl);
+      if (isMobile) {
+        setPaymentOpen(true);
+      } else {
+        router.push(payUrl);
+      }
+    } finally {
+      paymentFlowLockRef.current = false;
     }
   };
+
+  proceedToPaymentRef.current = handleProceedToPayment;
+
+  const guestDetailsComplete =
+    !!profile ||
+    (guestFullName.trim().length > 0 &&
+      guestEmail.trim().length > 0 &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()));
+
+  useEffect(() => {
+    if (!selectedSeat || !route || tripLoading) return;
+    if (existingBooking && existingBooking.status !== 'pending') return;
+    if (existingBookingId && profile && !existingBooking) return;
+    if (loading || paymentOpen) return;
+    if (userClosedPaymentSheet) return;
+    if (!guestDetailsComplete) return;
+    if (error) return;
+
+    void proceedToPaymentRef.current();
+  }, [
+    selectedSeat?.id,
+    route,
+    tripLoading,
+    existingBooking,
+    existingBooking?.status,
+    existingBookingId,
+    profile,
+    loading,
+    paymentOpen,
+    userClosedPaymentSheet,
+    guestDetailsComplete,
+    guestFullName,
+    guestEmail,
+    error,
+  ]);
 
   const handleCancelBooking = async () => {
     if (!existingBooking?.id || existingBooking.status !== 'pending') return;
@@ -339,8 +387,8 @@ export default function BookingPage() {
   const dateLabel = formatTripDateLabel(travelDate);
 
   const mobileBookingSheetOpen = paymentOpen;
-  /** Pay step is only highlighted on-device when the payment sheet is open (desktop pay happens on `/passenger/payment`). */
-  const payStepHighlighted = isMobile && paymentOpen;
+  /** Step 2 while checkout is opening or the mobile payment sheet is up. */
+  const payStepHighlighted = paymentOpen || loading;
 
   const mobileFullSheetClass = cn(
     'mt-0 flex h-[100dvh] max-h-[100dvh] flex-col rounded-none border-0 shadow-none ring-1 ring-border/60',
@@ -430,6 +478,10 @@ export default function BookingPage() {
               <span className="text-sm font-medium">Pay</span>
             </div>
           </div>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Pick a seat and we&apos;ll create your pending booking and open secure checkout — no extra &quot;continue&quot; tap
+            unless you close checkout and need to try again.
+          </p>
         </div>
 
         {error && !(isMobile && mobileBookingSheetOpen) ? (
@@ -521,6 +573,7 @@ export default function BookingPage() {
                 <SeatSelector
                   seats={route.available_seats}
                   bookedSeats={bookedSeatCodes}
+                  selectedSeat={selectedSeat}
                   onSelect={handleSeatSelect}
                   vehicleType={route.vehicle.vehicle_type}
                   passengerCapacity={route.total_seats}
@@ -542,11 +595,11 @@ export default function BookingPage() {
                 ) : null}
 
                 <p className="text-xs text-muted-foreground md:max-w-xl">
-                  By continuing you create a pending booking and agree to AweTravel&apos;s terms. Payment is completed
-                  on the next step via our payment partner.
+                  By selecting a seat you create a pending booking and agree to AweTravel&apos;s terms. Payment runs on
+                  the next screen via our payment partner.
                 </p>
 
-                <div className="hidden md:flex flex-wrap gap-4">
+                <div className="hidden md:flex flex-wrap items-center gap-4">
                   <button
                     type="button"
                     onClick={() => router.back()}
@@ -554,14 +607,16 @@ export default function BookingPage() {
                   >
                     Back
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleProceedToPayment()}
-                    disabled={!selectedSeat || loading}
-                    className="min-w-48 flex-1 rounded-lg bg-accent px-6 py-3 font-medium text-accent-foreground transition hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground"
-                  >
-                    {loading ? 'Preparing payment…' : 'Continue to payment'}
-                  </button>
+                  {error && selectedSeat && guestDetailsComplete ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={loading}
+                      onClick={() => void handleProceedToPayment()}
+                    >
+                      {loading ? 'Preparing checkout…' : 'Try checkout again'}
+                    </Button>
+                  ) : null}
                 </div>
             </div>
           </div>
@@ -637,20 +692,40 @@ export default function BookingPage() {
                   ) : (
                     <p className="text-xs text-muted-foreground">Select a seat</p>
                   )}
+                  {!profile && selectedSeat && !guestDetailsComplete ? (
+                    <p className="truncate text-xs text-amber-700 dark:text-amber-400">Add your name and email</p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
-                  onClick={() => void handleProceedToPayment()}
-                  disabled={!selectedSeat || loading}
+                  onClick={() => {
+                    setUserClosedPaymentSheet(false);
+                    void handleProceedToPayment();
+                  }}
+                  disabled={!selectedSeat || loading || !guestDetailsComplete}
                   className="shrink-0 rounded-lg bg-accent px-5 py-3 font-medium text-accent-foreground transition hover:bg-accent-dark disabled:bg-muted disabled:text-muted-foreground"
+                  aria-label={
+                    loading
+                      ? 'Opening checkout'
+                      : !guestDetailsComplete && !profile
+                        ? 'Enter your details to continue'
+                        : 'Open checkout'
+                  }
                 >
-                  {loading ? 'Wait…' : 'Pay'}
+                  {loading ? 'Opening…' : 'Checkout'}
                 </button>
               </div>
             </div>
           ) : null}
 
-          <Drawer open={paymentOpen} direction="bottom" onOpenChange={setPaymentOpen}>
+          <Drawer
+            open={paymentOpen}
+            direction="bottom"
+            onOpenChange={(open) => {
+              setPaymentOpen(open);
+              if (!open) setUserClosedPaymentSheet(true);
+            }}
+          >
             <DrawerContent className={mobileFullSheetClass}>
               <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border/70 bg-background px-4 pb-3 sm:px-5">
                 <DrawerHeader className="min-w-0 flex-1 space-y-1 p-0 text-left">
@@ -690,7 +765,10 @@ export default function BookingPage() {
                       guestEmail={profile?.email?.trim() ? undefined : guestEmail.trim() || undefined}
                       returnTripId={tripId}
                       confirmationEmailHint={displayEmail || undefined}
-                      onCancel={() => setPaymentOpen(false)}
+                      onCancel={() => {
+                        setPaymentOpen(false);
+                        setUserClosedPaymentSheet(true);
+                      }}
                     />
                   ) : null}
                 </div>

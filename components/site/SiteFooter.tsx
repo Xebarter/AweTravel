@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AppLogoMark } from '@/components/site/AppLogoMark';
 import { Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { APP_CURRENCY_CODE } from '@/lib/currency';
@@ -85,9 +86,7 @@ export function SiteFooter() {
               href="/"
               className="inline-flex items-center gap-3 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-lg font-bold text-white">
-                A
-              </span>
+              <AppLogoMark size={40} className="h-10 w-10 rounded-lg bg-accent/10 ring-1 ring-border/60" />
               <span className="text-xl font-bold tracking-tight text-foreground">AweTravel</span>
             </Link>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">

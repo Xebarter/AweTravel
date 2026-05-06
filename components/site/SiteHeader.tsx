@@ -16,6 +16,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { AppLogoMark } from '@/components/site/AppLogoMark';
 import { Menu } from 'lucide-react';
 
 export function SiteHeader() {
@@ -33,12 +34,11 @@ export function SiteHeader() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 transition-opacity hover:opacity-90">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent sm:h-10 sm:w-10">
-              <span className="text-base font-bold text-white sm:text-lg">A</span>
-            </div>
-            <span className="truncate text-lg font-bold text-foreground sm:text-2xl">
-              AweTravel
-            </span>
+            <AppLogoMark
+              size={40}
+              className="h-9 w-9 rounded-lg bg-accent/10 ring-1 ring-border/60 sm:h-10 sm:w-10"
+            />
+            <span className="truncate text-lg font-bold text-foreground sm:text-2xl">AweTravel</span>
           </Link>
 
           {onHome ? (
