@@ -339,7 +339,8 @@ export default function BookingPage() {
   const dateLabel = formatTripDateLabel(travelDate);
 
   const mobileBookingSheetOpen = paymentOpen;
-  const payStepActive = isMobile ? paymentOpen : loading;
+  /** Pay step is only highlighted on-device when the payment sheet is open (desktop pay happens on `/passenger/payment`). */
+  const payStepHighlighted = isMobile && paymentOpen;
 
   const mobileFullSheetClass = cn(
     'mt-0 flex h-[100dvh] max-h-[100dvh] flex-col rounded-none border-0 shadow-none ring-1 ring-border/60',
@@ -410,11 +411,7 @@ export default function BookingPage() {
           ) : null}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
             <div className="flex min-w-0 items-center gap-2">
-              <div
-                className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
-                  !payStepActive ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
-                }`}
-              >
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent font-bold text-accent-foreground">
                 1
               </div>
               <span className="text-sm font-medium">Select seat</span>
@@ -425,7 +422,7 @@ export default function BookingPage() {
             <div className="flex min-w-0 items-center gap-2">
               <div
                 className={`flex size-8 shrink-0 items-center justify-center rounded-full font-bold ${
-                  payStepActive ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+                  payStepHighlighted ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
                 }`}
               >
                 2

@@ -1,8 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
+import { getUserFromRouteRequest } from '@/lib/auth/route-request-user';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { createSupabaseRouteClient } from '@/lib/supabase-route';
 
 export type BookingCheckoutRow = {
   id: string;
@@ -20,54 +19,6 @@ export type BookingCheckoutRow = {
 
 function jsonError(message: string, status: number) {
   return { ok: false as const, status, message };
-}
-
-function bearerToken(request: NextRequest): string | null {
-  const raw = request.headers.get('authorization') ?? request.headers.get('Authorization');
-  if (!raw?.toLowerCase().startsWith('bearer ')) return null;
-  const t = raw.slice(7).trim();
-  return t || null;
-}
-
-/**
- * Resolves the user from the access token using a standalone client.
- * `createServerClient().auth.getUser(jwt)` is unreliable in some Next.js Route Handler setups.
- */
-async function getUserFromAccessToken(accessToken: string): Promise<User | null> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-
-  const client = createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-    global: {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    },
-  });
-
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user;
-}
-
-async function resolveUserFromRequest(request: NextRequest): Promise<User | null> {
-  const token = bearerToken(request);
-  if (token) {
-    const fromBearer = await getUserFromAccessToken(token);
-    if (fromBearer) return fromBearer;
-  }
-
-  const supabase = await createSupabaseRouteClient();
-  if (!supabase) return null;
-
-  const fromCookies = await supabase.auth.getUser();
-  if (fromCookies.data.user) return fromCookies.data.user;
-
-  return null;
 }
 
 export async function authorizeBookingCheckout(
@@ -108,7 +59,7 @@ export async function authorizeBookingCheckout(
   const row = booking as unknown as BookingCheckoutRow;
 
   if (row.passenger_user_id) {
-    const user = await resolveUserFromRequest(request);
+    const user = await getUserFromRouteRequest(request);
     if (!user) {
       return jsonError('Sign in to complete payment', 401);
     }
@@ -124,6 +75,6 @@ export async function authorizeBookingCheckout(
     return jsonError('Invalid guest credentials', 403);
   }
 
-  const user = await resolveUserFromRequest(request);
+  const user = await getUserFromRouteRequest(request);
   return { ok: true, booking: row, user };
 }

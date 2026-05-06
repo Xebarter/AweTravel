@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getUserFromRouteRequest } from '@/lib/auth/route-request-user';
 import { createSupabaseRouteClient } from '@/lib/supabase-route';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { hasSeatConflict } from '@/lib/bookings-seat-conflict';
@@ -34,11 +35,8 @@ export async function GET(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  const user = await getUserFromRouteRequest(request);
+  if (!user) return jsonError('Unauthorized', 401);
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
@@ -93,12 +91,6 @@ export async function POST(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr) return jsonError('Unauthorized', 401);
-
   let body: unknown;
   try {
     body = await request.json();
@@ -111,12 +103,14 @@ export async function POST(request: NextRequest) {
 
   const { routeId, departureId, travelDate, seatCode, guestFullName, guestEmail, guestPhone } = parsed.data;
 
+  const user = await getUserFromRouteRequest(request);
+
   const admin = createSupabaseAdminClient();
   if (!admin) return jsonError('Server misconfigured', 500);
 
   if (!user) {
     if (!guestFullName || !guestEmail) {
-      return jsonError('Guest bookings require full name and email', 400);
+      return jsonError('Sign in to book, or provide guest full name and email', 401);
     }
   }
 
@@ -218,11 +212,8 @@ export async function PATCH(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  const user = await getUserFromRouteRequest(request);
+  if (!user) return jsonError('Unauthorized', 401);
 
   let body: unknown;
   try {

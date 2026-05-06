@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getUserFromRouteRequest } from '@/lib/auth/route-request-user';
 import { createSupabaseRouteClient } from '@/lib/supabase-route';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { hasSeatConflict } from '@/lib/bookings-seat-conflict';
@@ -23,15 +24,12 @@ function jsonError(message: string, status = 400) {
 /**
  * GET /api/bookings/[id] — one booking for the signed-in passenger (enriched).
  */
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  const user = await getUserFromRouteRequest(request);
+  if (!user) return jsonError('Unauthorized', 401);
 
   const { id } = await context.params;
 
@@ -59,11 +57,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  const user = await getUserFromRouteRequest(request);
+  if (!user) return jsonError('Unauthorized', 401);
 
   const { id } = await context.params;
 
@@ -132,15 +127,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 /**
  * DELETE /api/bookings/[id] — passenger cancels a pending or confirmed booking.
  */
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) return jsonError('Server misconfigured', 500);
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return jsonError('Unauthorized', 401);
+  const user = await getUserFromRouteRequest(request);
+  if (!user) return jsonError('Unauthorized', 401);
 
   const { id } = await context.params;
   const admin = createSupabaseAdminClient();

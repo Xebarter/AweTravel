@@ -40,11 +40,13 @@ function getBaseUrl(): string {
 }
 
 function getSecret(): string | undefined {
-  return process.env.PAYTOTA_SECRET_KEY || process.env.PAYTOTA_API_KEY;
+  const v = (process.env.PAYTOTA_SECRET_KEY || process.env.PAYTOTA_API_KEY)?.trim();
+  return v || undefined;
 }
 
 function getBrandId(): string | undefined {
-  return process.env.PAYTOTA_BRAND_ID;
+  const v = process.env.PAYTOTA_BRAND_ID?.trim();
+  return v || undefined;
 }
 
 /** From env: `true` / `1` / `yes` → true (default false). */
@@ -193,7 +195,13 @@ export async function createPaytotaPurchase(input: PaytotaCreatePurchaseInput): 
 
   if (!res.ok) {
     const code = typeof typed.code === 'string' ? typed.code : undefined;
-    const msg = parsePaytotaApiErrorMessage(res.status, data, rawText);
+    let msg = parsePaytotaApiErrorMessage(res.status, data, rawText);
+    if (res.status === 401 || /\bunauthorized\b/i.test(msg)) {
+      msg =
+        `Paytota returned 401 (${msg}). This is almost always your gate credentials: copy PAYTOTA_SECRET_KEY exactly ` +
+        `from Paytota → Developers (no surrounding quotes or spaces), use the same environment (test vs live) as ` +
+        `PAYTOTA_BRAND_ID, and set PAYTOTA_BASE_URL to https://gate.paytota.com unless Paytota gave you a different host.`;
+    }
     return { ok: false, message: msg, status: res.status, code };
   }
 
