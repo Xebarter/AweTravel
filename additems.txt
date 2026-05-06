@@ -1,202 +1,63 @@
-MYGARAGE PAYTOTA PAYMENTS — IMPLEMENTATION GUIDE
-=================================================
-This document describes how this project integrates Paytota (https://gate.paytota.com) so you can reproduce the same pattern elsewhere: collections (customer “Purchase” checkout), optional server-to-server purchase execution, webhooks with RSA signature verification, and disbursements (vendor “Payout” with a two-step initiate + execute flow).
+AweTravel Terms of Use
+Last Updated: May 6, 2026
+Effective Date: May 6, 2026
+Welcome to AweTravel (the “Platform”), a web application operated by AweTravel Limited (“AweTravel,” “we,” “us,” or “our”). These Terms of Use (“Terms”) govern your access to and use of the Platform, including any associated websites, mobile applications, subdomains, and related services (collectively, the “Services”) for booking bus, train, plane tickets, and related travel services.
+By accessing or using the Services, creating an account, making a booking, or otherwise interacting with the Platform, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you do not agree to these Terms, you must not access or use the Services.
+These Terms constitute a legally binding agreement between you and AweTravel Limited. We reserve the right to update or modify these Terms at any time. We will notify you of material changes by posting the revised Terms on the Platform or via email. Your continued use of the Services after the effective date of any changes constitutes your acceptance of the revised Terms. Bookings made prior to the change will remain governed by the Terms in effect at the time of booking.
+1. Definitions
 
--------------------------------------------------------------------------------
-1. PURPOSE AND FLOWS
--------------------------------------------------------------------------------
-- Collections (inbound money): Paytota “Purchase” API. Two entry points in the app:
-  (A) Product cart checkout → POST /api/paytota/checkout
-  (B) Service job payment → POST /api/paytota/service-payment
-  Both call Paytota POST {BASE}/api/v1/purchases/ with JSON, receive a purchase id and checkout_url; the browser redirects the payer to checkout_url.
+“Booking” – Any reservation for bus, train, plane tickets, or ancillary travel services made through the Services.
+“Travel Provider” – Third-party airlines, bus operators, train/rail companies, airports, stations, or other entities that provide the actual transportation services.
+“User,” “you,” “your” – The individual or entity accessing or using the Services.
 
-- Optional “Step 2” for purchases (e.g. trigger Mobile Money STK from your server instead of only using hosted checkout): POST /api/paytota/purchase-execute with body { "purchaseId": "<paytota purchase id>" }. That maps to Paytota POST {BASE}/p/{id}/ with multipart form: s2s=true, pm=paytota_proxy.
+2. Eligibility and Account Registration
+You must be at least 18 years old or the age of majority in your jurisdiction. By using the Services, you represent and warrant that you meet this requirement and have the legal capacity to enter into contracts.
+To use certain features like booking, you may need to create an Account. You agree to provide accurate, current, and complete information and to keep it updated. You are responsible for maintaining the confidentiality of your account credentials and for all activities under your Account.
+3. Our Role and the Services
+AweTravel is an intermediary online platform that allows users to search, compare, and book travel services provided by independent third-party Travel Providers. We do not operate any transportation services ourselves and are not a carrier.
+All bookings create a direct contract between you and the relevant Travel Provider. The Travel Provider is solely responsible for fulfilling the travel service, including schedules, performance, safety, baggage, delays, cancellations, and refunds.
+We strive to provide accurate information but do not guarantee the accuracy, completeness, or availability of information provided by Travel Providers. Prices, availability, and schedules are subject to change until the booking is confirmed.
+4. Bookings and Reservations
 
-- Disbursements (outbound money): Admin triggers Paytota “Payout” from PATCH /api/admin/payments with { "disbursementId": "...", "status": "processing" }. Server calls POST {BASE}/api/v1/payouts/ then POST the execution_url returned by Paytota with a JSON body (mobile vs bank). Final states arrive on the webhook.
+You must review all details, including the Travel Provider’s terms and conditions, before confirming a booking.
+A booking is only confirmed upon receipt of a confirmation email or ticket with a booking reference.
+You are responsible for ensuring all passenger information (names, dates of birth, passport/ID details, contact information) is accurate. Errors may result in denial of boarding or extra charges.
+The person making the booking is responsible for all passengers in the group.
 
-- Authoritative integration log: table paytota_transactions (one row per Paytota purchase or payout attempt, with request/response/webhook JSON). provider_reference is the Paytota purchase or payout id (unique when set).
+5. Prices, Payments, and Fees
+Prices shown include the base fare and applicable taxes and fees as indicated at the time of booking. Additional charges (baggage, seat selection, etc.) may apply according to the Travel Provider’s policies.
+We may charge service or convenience fees, which will be clearly disclosed before payment. Payments are processed securely through third-party processors. You authorize us to charge the selected payment method.
+In case of obvious pricing errors, we or the Travel Provider reserve the right to cancel the booking and issue a full refund.
+6. Cancellations, Changes, Refunds, and No-Shows
+Cancellations, modifications, and refunds are subject exclusively to the policies of the respective Travel Provider, which are displayed during the booking process. We act only as a facilitator and have no control over the Travel Provider’s refund policies.
+You are responsible for understanding these policies before booking. We may charge an administrative fee for processing cancellation or change requests where permitted.
+7. User Conduct
+You agree not to:
 
--------------------------------------------------------------------------------
-2. ENVIRONMENT VARIABLES
--------------------------------------------------------------------------------
-Required:
-- PAYTOTA_SECRET_KEY — sent as Authorization: Bearer <secret> on JSON API calls to gate.paytota.com (purchases, payouts, payout execute).
-- PAYTOTA_BRAND_ID — UUID string; included in every purchase and payout payload as brand_id.
-- PAYTOTA_WEBHOOK_PUBLIC_KEY — PEM RSA public key (literal newlines or \n escaped). Used to verify webhook authenticity; do NOT use NEXT_PUBLIC_* for this.
+Make fraudulent or speculative bookings.
+Use automated tools, scraping, or unauthorized access methods.
+Post harmful, defamatory, or infringing content.
+Violate any applicable laws or third-party rights.
+Use the Services for commercial purposes without authorization.
 
-Optional:
-- PAYTOTA_BASE_URL — default https://gate.paytota.com (trim trailing slashes in code).
-- PAYTOTA_PAYMENT_METHOD_WHITELIST — comma-separated Paytota method codes; omit entirely unless you intentionally restrict methods (default app shape matches Paytota docs: client, purchase, reference, skip_capture, brand_id only).
-- PAYTOTA_SKIP_CAPTURE — true/false; default false. Match your brand’s hold/capture rules.
-- PAYTOTA_MIN_PURCHASE_UGX — minimum amount in UGX before calling Paytota for collections; default 500 in app logic, or set 0/false/off to disable the app-side check.
-- NEXT_PUBLIC_APP_URL — canonical public origin for success/failure/cancel redirects and webhook documentation helpers.
-- PAYTOTA_SUCCESS_REDIRECT, PAYTOTA_FAILURE_REDIRECT, PAYTOTA_CANCEL_REDIRECT — override default redirect bases (defaults under /payments/success|failure|cancel on the public app URL).
-- PAYTOTA_WEBHOOK_PATH — default /api/paytota/webhook (for documenting the URL to paste in Paytota dashboard).
+You are responsible for complying with all travel requirements (visas, health, immigration, etc.).
+8. Intellectual Property
+All content, logos, trademarks, and software on the Platform are owned by AweTravel Limited or its licensors. You are granted a limited, revocable license to use the Services for personal, non-commercial use only.
+9. Privacy
+Your use of the Services is also governed by our Privacy Policy, which is incorporated by reference.
+10. Disclaimers
+The Services and all content are provided “AS IS” and “AS AVAILABLE” without any warranties, express or implied. We do not warrant the performance of Travel Providers or the accuracy of information on the Platform.
+11. Limitation of Liability
+To the maximum extent permitted by law, AweTravel Limited shall not be liable for any indirect, incidental, consequential, or punitive damages arising from your use of the Services or any bookings. Our total liability shall not exceed the amount paid by you to AweTravel for the relevant booking.
+12. Indemnification
+You agree to indemnify and hold harmless AweTravel Limited, its officers, directors, employees, and agents from any claims, damages, or expenses arising from your use of the Services, violation of these Terms, or infringement of third-party rights.
+13. Termination
+We may suspend or terminate your access to the Services at any time for any reason. You may terminate your account by contacting support.
+14. Governing Law
+These Terms are governed by the laws of the Republic of Uganda. Any disputes shall be resolved in the courts of Kampala, Uganda.
+15. Miscellaneous
 
--------------------------------------------------------------------------------
-3. HTTP CLIENT (SERVER-SIDE)
--------------------------------------------------------------------------------
-Implement a small module that:
+Severability, waiver, and entire agreement clauses apply as standard.
+Contact us at [support@awetravel.com] for any questions.
 
-3.1 Config
-- Read BASE_URL, secret key, brand id from env; throw if missing where required.
-
-3.2 createPurchase(payload)
-- POST `${BASE_URL}/api/v1/purchases/`
-- Headers: Authorization: Bearer <PAYTOTA_SECRET_KEY>, Content-Type: application/json
-- Body: JSON object (see section 4).
-- Parse JSON on success; on non-OK responses parse message from nested error shapes or fall back to raw body text for debugging.
-
-3.3 executePurchaseS2S(purchaseId)
-- POST `${BASE_URL}/p/${encodeURIComponent(purchaseId)}/`
-- Body: multipart/form-data with fields s2s=true and pm=paytota_proxy
-- Note: This endpoint does not use the same header pattern as the JSON APIs in this codebase’s implementation—only FormData is sent.
-
-3.4 createPayout(payload)
-- POST `${BASE_URL}/api/v1/payouts/` with Bearer auth and JSON body (see section 6).
-
-3.5 executePayout(executionUrl, payload)
-- POST executionUrl from createPayout response with Bearer auth and JSON body (mobile: { "payout_type": "mobile" }; bank: { "payout_type": "bank", bank_name, bank_code, bank_account_name, bank_account_number }).
-
-3.6 verifyPaytotaSignature(rawBody: Buffer, signatureHeader: string | null)
-- Read signature from X-Signature or Signature header (base64).
-- Use Node crypto.createVerify("RSA-SHA256"): verifier.update(rawBody); return verifier.verify(publicKeyPem, Buffer.from(signature, "base64")).
-- Normalize PEM if the env stores \n as escaped two-char sequences.
-
--------------------------------------------------------------------------------
-4. COLLECTION — PURCHASE “STEP 1” (INITIATE) JSON SHAPE
--------------------------------------------------------------------------------
-Paytota expects (minimum shape used here):
-
-{
-  "client": {
-    "email": "<string>",
-    "phone": "<digits, Uganda MSISDN normalized e.g. 2567XXXXXXXX>",
-    "country": "UG",
-    "full_name": "<string>",
-    "street_address": "<optional string for product checkout>"
-  },
-  "purchase": {
-    "currency": "UGX",
-    "products": [
-      { "name": "<line title>", "price": "<string integer minor units / whole UGX as string per line>" }
-    ]
-  },
-  "reference": "<your unique reference, e.g. MYG-chk-... or SVC-spay-...>",
-  "skip_capture": <boolean>,
-  "brand_id": "<PAYTOTA_BRAND_ID>",
-  "success_redirect": "<https URL>",
-  "failure_redirect": "<https URL>",
-  "cancel_redirect": "<https URL>"
-}
-
-Optional: "payment_method_whitelist": ["<code>", ...] only if env configured.
-
-Important product-checkout detail: build one product line per cart line with price = String(round(unit_price * quantity)); add a separate synthetic line for tax if applicable (e.g. { "name": "Tax", "price": "<tax>" }). Paytota expects string prices for products.
-
-On success, Paytota returns JSON including at least id (purchase id / provider reference) and checkout_url. Persist id as provider_reference and send the user to checkout_url.
-
-Error handling: if the API returns purchase_no_available_payment_method, the usual causes are brand dashboard not enabling UGX/mobile methods, wrong key vs brand environment, skip_capture mismatch, or amount too low—surface a clear operator hint.
-
--------------------------------------------------------------------------------
-5. APP ROUTES — COLLECTIONS
--------------------------------------------------------------------------------
-5.1 POST /api/paytota/checkout (product)
-- Validate items, customer name/email, phone (normalize Uganda numbers: strip non-digits; 0XXXXXXXXX → 256…; 9 digits → 256…).
-- Resolve products and vendors from DB; create or load customer by email.
-- Compute subtotal, tax (this app uses 8% rounded), total; enforce PAYTOTA_MIN_PURCHASE_UGX if configured.
-- Create checkout_sessions row (checkout_type product, status progression through review → mark ready for payment via DB RPCs), line items via upsert_checkout_line_item, then mark_checkout_ready_for_payment.
-- Build purchase JSON (reference MYG-{checkoutId}), call createPurchase, store payment_reference on checkout_sessions, insert paytota_transactions row:
-  - transaction_type = collection, direction = inbound, checkout_id set, customer_id, currency, amount, provider_reference = purchase.id, status = processing, request_payload / response_payload JSON.
-- Return { checkoutId, paymentReference, checkoutUrl }.
-
-5.2 POST /api/paytota/service-payment (services)
-- Accept servicePaymentId or requestId (+ customerId/amount to create service_payments row if needed).
-- Load service_payments; enforce min UGX if currency is UGX.
-- Build purchase with a single product line name like "Service payment {request_id}", price string from rounded amount; reference SVC-{servicePaymentId}; redirects include servicePaymentId and requestId in query string helpers.
-- insert paytota_transactions with service_payment_id, vendor_id = provider_id, etc.
-- Return { servicePaymentId, paymentReference, checkoutUrl }.
-
-5.3 POST /api/paytota/purchase-execute
-- Body: { "purchaseId": "<paytota id>" }.
-- Call executePurchaseS2S; best-effort update paytota_transactions.provider_status and status for matching provider_reference.
-
--------------------------------------------------------------------------------
-6. DISBURSEMENTS — PAYOUT FLOW
--------------------------------------------------------------------------------
-Prerequisites in DB: admin_disbursements queue rows, vendor_payout_accounts (mobile_money or bank_account; bank_code in metadata for banks).
-
-Admin API: PATCH /api/admin/payments with authenticated admin user (role in JWT app_metadata).
-
-When status is set to "processing":
-- Load disbursement and default vendor_payout_accounts row.
-- Build Paytota payout initiate payload:
-  - client: { email (vendor email or synthetic), phone: account_number for mobile path, country: "UG", full_name, bank_account optional for bank type }
-  - payment: { currency, amount: net_amount number, description }
-  - reference: disbursement.id
-  - brand_id
-- createPayout → read execution_url from response.
-- executePayout(execution_url, executePayload):
-  - mobile_money → { "payout_type": "mobile" }
-  - bank_account → { "payout_type": "bank", bank_name: network field, bank_code from metadata, bank_account_name, bank_account_number }
-- RPC admin_set_disbursement_status to processing with payout_reference.
-- Insert paytota_transactions: transaction_type disbursement, direction outbound, admin_disbursement_id, vendor_id, amount, provider_reference (payout id), status processing, payloads stored.
-
-Webhook later moves admin_disbursements to paid/failed when the outbound transaction row has admin_disbursement_id set (see section 8).
-
--------------------------------------------------------------------------------
-7. WEBHOOK — POST /api/paytota/webhook
--------------------------------------------------------------------------------
-7.1 Transport and security
-- Read the raw body as a Buffer / Uint8Array before JSON parse (signature is over exact bytes).
-- Verify RSA-SHA256 signature from X-Signature (or Signature) using PAYTOTA_WEBHOOK_PUBLIC_KEY; reject with 401 if invalid.
-- Parse JSON; require payload.id (provider reference) and payload.status; read payload.event_type.
-
-7.2 Dispatch
-- For event_type starting with "purchase.":
-  - Call DB RPC on_paytota_webhook_finalize_checkout(p_provider_reference := id, p_provider_status := status, p_payload := full JSON, p_transaction_id := null).
-  - If event_type === "purchase.paid" AND the paytota_transactions row for that provider_reference has checkout_id set (product flow):
-    - Deterministic order id ord-{checkoutId}; call RPC materialize_paid_product_checkout (idempotent; tolerate “already materialized” and then read actual product_orders.id from checkout_id).
-    - Call RPC create_admin_disbursements_for_product_order to enqueue vendor payouts (fee percent parameter exists; this app passes 0 in the webhook path shown).
-
-- For event_type starting with "payout.":
-  - Normalize status strings (paid/success → succeeded; error/failed → failed; pending → processing; cancelled → cancelled).
-  - Call the same on_paytota_webhook_finalize_checkout with normalized status for disbursement-side updates.
-
-Return { ok: true } on success.
-
--------------------------------------------------------------------------------
-8. DATABASE CONTRACT (MINIMUM YOU MUST REPRODUCE OR ADAPT)
--------------------------------------------------------------------------------
-8.1 paytota_transactions
-- Logs every inbound collection and outbound disbursement.
-- Key columns: transaction_type (collection|disbursement|…), direction (inbound|outbound), checkout_id OR service_payment_id OR admin_disbursement_id, customer_id, vendor_id, currency, amount, provider_reference (UNIQUE when not null), provider_status, status (pending|processing|succeeded|failed|cancelled), request_payload, response_payload, webhook_payload (jsonb).
-
-8.2 on_paytota_webhook_finalize_checkout(provider_reference, provider_status, payload, transaction_id)
-- SECURITY DEFINER RPC: finds the newest paytota_transactions row by provider_reference (or by internal transaction id).
-- Updates that row’s status from Paytota status (normalize paid/success/completed → succeeded, etc.).
-- If checkout_id: set checkout_sessions to paid/failed/cancelled and paid_at when succeeded.
-- If service_payment_id: set service_payments to captured on success, failed/cancelled otherwise; set provider_reference and paid_at.
-- If provider_payout_id (service ledger): update service_provider_payouts and linked admin_disbursements.
-- If admin_disbursement_id: update that admin_disbursements row to paid or failed for approved/processing states.
-
-8.3 Supporting tables (conceptual)
-- checkout_sessions + checkout_line_items for product carts.
-- service_payments for service jobs.
-- admin_disbursements + admin_disbursement_queue view for operations UI.
-- vendor_payout_accounts for payout destinations.
-
--------------------------------------------------------------------------------
-9. REDIRECT URLS
--------------------------------------------------------------------------------
-Build absolute HTTPS URLs from NEXT_PUBLIC_APP_URL (or fixed production default). Append query params for checkoutId or servicePaymentId/requestId so success/failure pages can correlate. Allow env overrides PAYTOTA_*_REDIRECT.
-
--------------------------------------------------------------------------------
-10. OPERATIONAL CHECKLIST TO GO LIVE
--------------------------------------------------------------------------------
-- Register webhook URL in Paytota dashboard: {NEXT_PUBLIC_APP_URL}/api/paytota/webhook (or PAYTOTA_WEBHOOK_PATH).
-- Confirm brand has Uganda / UGX collection methods enabled; test vs live keys match brand_id.
-- Use whole-number UGX string prices in purchase.products[].price.
-- Keep webhook raw-body verification enabled; never expose the webhook public key to browser bundles.
-
-End of guide.
+By using AweTravel, you confirm that you have read and agree to these Terms of Use.

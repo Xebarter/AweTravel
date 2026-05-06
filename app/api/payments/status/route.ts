@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { authorizeBookingCheckout } from '@/lib/payments/booking-checkout-access';
 import { fetchPaytotaPurchase } from '@/lib/paytota';
+import { trySendTicketEmail } from '@/lib/ticket-email';
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
@@ -64,7 +65,10 @@ export async function GET(request: NextRequest) {
         })
         .eq('id', booking.id)
         .in('payment_status', ['pending']);
-      if (!error) synced = true;
+      if (!error) {
+        synced = true;
+        void trySendTicketEmail(booking.id);
+      }
     }
   }
 

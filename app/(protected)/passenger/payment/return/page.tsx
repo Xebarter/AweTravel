@@ -60,8 +60,48 @@ function ReturnContent() {
       }
 
       if (json.data.bookingPaymentStatus === 'completed' || json.data.paytotaStatus === 'paid') {
+        const q = new URLSearchParams({ bookingId });
+        if (guestEmail.trim()) q.set('guestEmail', guestEmail.trim());
+        const authHeaders = await getSupabaseAuthHeaderInit();
+        try {
+          const tRes = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/ticket?${q.toString()}`, {
+            credentials: 'include',
+            headers: { ...authHeaders },
+          });
+          if (tRes.ok) {
+            const blob = await tRes.blob();
+            const cd = tRes.headers.get('Content-Disposition');
+            let filename = 'AweTravel-ticket.pdf';
+            if (cd) {
+              const m =
+                /filename\*=UTF-8''([^;\n]+)|filename="([^"\n]+)"|filename=([^;\n]+)/i.exec(cd);
+              const raw = (m?.[1] || m?.[2] || m?.[3])?.trim();
+              if (raw) {
+                try {
+                  filename = decodeURIComponent(raw.replace(/^"+|"+$/g, ''));
+                } catch {
+                  filename = raw.replace(/^"+|"+$/g, '');
+                }
+              }
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          }
+        } catch {
+          /* best-effort download; user can open booking later */
+        }
+
+        await new Promise((r) => window.setTimeout(r, 500));
+
         const dest = tripId
-          ? `/passenger/booking-confirmation?tripId=${encodeURIComponent(tripId)}`
+          ? `/passenger/booking-confirmation?tripId=${encodeURIComponent(tripId)}&bookingId=${encodeURIComponent(bookingId)}`
           : '/passenger/bookings';
         router.replace(dest);
         return;

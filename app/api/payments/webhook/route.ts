@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import type { PlatformTransactionStatus } from '@/lib/admin/transactions/types';
 import { getPaytotaWebhookSignatureFromHeaders, verifyPaytotaWebhookSignature } from '@/lib/paytota-webhook';
+import { trySendTicketEmail } from '@/lib/ticket-email';
 
 function toAmountMinor(raw: unknown): number | null {
   const n = Math.round(Number(raw));
@@ -180,17 +181,21 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
   const purchaseId = payload.id;
 
   if (payload.event_type === 'purchase.paid') {
-    const { error } = await admin
+    const { error, data } = await admin
       .from('bookings')
       .update({
         payment_status: 'completed',
         status: 'confirmed',
       })
       .eq('id', bookingId)
-      .eq('payment_reference', purchaseId);
+      .eq('payment_reference', purchaseId)
+      .select('id')
+      .maybeSingle();
     if (error) {
       console.error('[Payment Webhook] booking confirm failed:', error);
+      return;
     }
+    if (data) void trySendTicketEmail(bookingId);
     return;
   }
 
