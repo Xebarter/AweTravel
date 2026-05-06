@@ -1,63 +1,112 @@
-AweTravel Terms of Use
+AweTravel Privacy Policy
 Last Updated: May 6, 2026
 Effective Date: May 6, 2026
-Welcome to AweTravel (the “Platform”), a web application operated by AweTravel Limited (“AweTravel,” “we,” “us,” or “our”). These Terms of Use (“Terms”) govern your access to and use of the Platform, including any associated websites, mobile applications, subdomains, and related services (collectively, the “Services”) for booking bus, train, plane tickets, and related travel services.
-By accessing or using the Services, creating an account, making a booking, or otherwise interacting with the Platform, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you do not agree to these Terms, you must not access or use the Services.
-These Terms constitute a legally binding agreement between you and AweTravel Limited. We reserve the right to update or modify these Terms at any time. We will notify you of material changes by posting the revised Terms on the Platform or via email. Your continued use of the Services after the effective date of any changes constitutes your acceptance of the revised Terms. Bookings made prior to the change will remain governed by the Terms in effect at the time of booking.
-1. Definitions
+This Privacy Policy explains how AweTravel Limited (“AweTravel,” “we,” “us,” or “our”) collects, uses, discloses, and protects your personal information when you access or use our website, mobile application, or any other online services (collectively, the “Platform” or “Services”) for booking bus, train, plane tickets, and related travel services.
+By using the Services, you consent to the practices described in this Privacy Policy. If you do not agree with this Policy, please do not use the Platform.
+We may update this Privacy Policy from time to time. We will notify you of material changes by posting the revised version on the Platform and updating the “Last Updated” date. We encourage you to review this Policy periodically.
+1. Information We Collect
+We collect the following categories of information:
+1.1 Personal Information You Provide
 
-“Booking” – Any reservation for bus, train, plane tickets, or ancillary travel services made through the Services.
-“Travel Provider” – Third-party airlines, bus operators, train/rail companies, airports, stations, or other entities that provide the actual transportation services.
-“User,” “you,” “your” – The individual or entity accessing or using the Services.
+Account information: Name, email address, phone number, password, date of birth, gender, nationality.
+Booking information: Passenger names, dates of birth, passport/ID numbers, contact details, travel preferences, special requests (e.g., meal preferences, accessibility needs).
+Payment information: Billing address, payment card details (processed by third-party payment processors — we do not store full card numbers).
+Communication data: Messages, support requests, feedback, reviews, and survey responses.
+Identity verification data: Government-issued ID copies (where required by law or Travel Providers).
 
-2. Eligibility and Account Registration
-You must be at least 18 years old or the age of majority in your jurisdiction. By using the Services, you represent and warrant that you meet this requirement and have the legal capacity to enter into contracts.
-To use certain features like booking, you may need to create an Account. You agree to provide accurate, current, and complete information and to keep it updated. You are responsible for maintaining the confidentiality of your account credentials and for all activities under your Account.
-3. Our Role and the Services
-AweTravel is an intermediary online platform that allows users to search, compare, and book travel services provided by independent third-party Travel Providers. We do not operate any transportation services ourselves and are not a carrier.
-All bookings create a direct contract between you and the relevant Travel Provider. The Travel Provider is solely responsible for fulfilling the travel service, including schedules, performance, safety, baggage, delays, cancellations, and refunds.
-We strive to provide accurate information but do not guarantee the accuracy, completeness, or availability of information provided by Travel Providers. Prices, availability, and schedules are subject to change until the booking is confirmed.
-4. Bookings and Reservations
+1.2 Information Collected Automatically
 
-You must review all details, including the Travel Provider’s terms and conditions, before confirming a booking.
-A booking is only confirmed upon receipt of a confirmation email or ticket with a booking reference.
-You are responsible for ensuring all passenger information (names, dates of birth, passport/ID details, contact information) is accurate. Errors may result in denial of boarding or extra charges.
-The person making the booking is responsible for all passengers in the group.
+Device and usage data: IP address, device type, operating system, browser type, device identifiers, app version.
+Location data: Approximate location derived from IP address or GPS (with your consent where required).
+Log data: Access times, pages viewed, links clicked, search queries.
+Cookies and similar technologies: See Section 9 below.
 
-5. Prices, Payments, and Fees
-Prices shown include the base fare and applicable taxes and fees as indicated at the time of booking. Additional charges (baggage, seat selection, etc.) may apply according to the Travel Provider’s policies.
-We may charge service or convenience fees, which will be clearly disclosed before payment. Payments are processed securely through third-party processors. You authorize us to charge the selected payment method.
-In case of obvious pricing errors, we or the Travel Provider reserve the right to cancel the booking and issue a full refund.
-6. Cancellations, Changes, Refunds, and No-Shows
-Cancellations, modifications, and refunds are subject exclusively to the policies of the respective Travel Provider, which are displayed during the booking process. We act only as a facilitator and have no control over the Travel Provider’s refund policies.
-You are responsible for understanding these policies before booking. We may charge an administrative fee for processing cancellation or change requests where permitted.
-7. User Conduct
-You agree not to:
+1.3 Information from Third Parties
 
-Make fraudulent or speculative bookings.
-Use automated tools, scraping, or unauthorized access methods.
-Post harmful, defamatory, or infringing content.
-Violate any applicable laws or third-party rights.
-Use the Services for commercial purposes without authorization.
+Travel Providers (airlines, bus companies, train operators): Booking status, ticket details, check-in information.
+Payment processors and fraud detection services.
+Business partners and analytics providers.
+Social media platforms (if you log in using social credentials).
 
-You are responsible for complying with all travel requirements (visas, health, immigration, etc.).
-8. Intellectual Property
-All content, logos, trademarks, and software on the Platform are owned by AweTravel Limited or its licensors. You are granted a limited, revocable license to use the Services for personal, non-commercial use only.
-9. Privacy
-Your use of the Services is also governed by our Privacy Policy, which is incorporated by reference.
-10. Disclaimers
-The Services and all content are provided “AS IS” and “AS AVAILABLE” without any warranties, express or implied. We do not warrant the performance of Travel Providers or the accuracy of information on the Platform.
-11. Limitation of Liability
-To the maximum extent permitted by law, AweTravel Limited shall not be liable for any indirect, incidental, consequential, or punitive damages arising from your use of the Services or any bookings. Our total liability shall not exceed the amount paid by you to AweTravel for the relevant booking.
-12. Indemnification
-You agree to indemnify and hold harmless AweTravel Limited, its officers, directors, employees, and agents from any claims, damages, or expenses arising from your use of the Services, violation of these Terms, or infringement of third-party rights.
-13. Termination
-We may suspend or terminate your access to the Services at any time for any reason. You may terminate your account by contacting support.
-14. Governing Law
-These Terms are governed by the laws of the Republic of Uganda. Any disputes shall be resolved in the courts of Kampala, Uganda.
-15. Miscellaneous
+2. How We Use Your Information
+We use the collected information for the following purposes:
 
-Severability, waiver, and entire agreement clauses apply as standard.
-Contact us at [support@awetravel.com] for any questions.
+To provide, operate, and improve the Services (search, booking, ticket issuance, itinerary management).
+To process transactions and send booking confirmations, tickets, and updates.
+To communicate with you regarding bookings, customer support, and important notices.
+To personalize your experience (saved searches, travel preferences, recommendations).
+To send marketing communications (promotions, newsletters) — you may opt out at any time.
+To detect, prevent, and investigate fraud, security incidents, and violations of our Terms.
+To comply with legal obligations, respond to court orders, government requests, and enforce our rights.
+To conduct analytics, research, and service improvements (aggregated or anonymized data).
+To facilitate communication between you and Travel Providers.
 
-By using AweTravel, you confirm that you have read and agree to these Terms of Use.
+3. Sharing Your Information
+We share your personal information in the following circumstances:
+3.1 With Travel Providers
+We share necessary passenger and booking details with the relevant bus operators, airlines, train companies, and other Travel Providers to fulfill your reservation. They may use this data according to their own privacy policies.
+3.2 With Service Providers
+We engage trusted third-party service providers who assist us with:
+
+Payment processing
+Cloud hosting and infrastructure
+Customer support tools
+Email and SMS delivery
+Analytics and marketing
+Fraud detection and security
+
+These providers are contractually obligated to protect your data and use it only for the services they provide to us.
+3.3 For Legal and Safety Reasons
+We may disclose information if required by law, regulation, legal process, or government request, or to protect the rights, property, or safety of AweTravel, our users, or the public.
+3.4 Business Transfers
+In the event of a merger, acquisition, reorganization, or sale of assets, your information may be transferred as part of that transaction.
+We do not sell your personal information to third parties for monetary compensation.
+4. Legal Basis for Processing (Where Applicable)
+Depending on your location, we may rely on the following legal bases:
+
+Performance of a contract (e.g., processing your booking).
+Legitimate business interests (e.g., fraud prevention, service improvement).
+Your consent (e.g., marketing emails, certain cookies).
+Compliance with legal obligations.
+
+5. Data Retention
+We retain your personal information for as long as necessary to fulfill the purposes outlined in this Policy, comply with legal obligations, resolve disputes, and enforce our agreements. Typically, booking-related data is kept for at least 7 years for accounting and legal purposes. You may request deletion of your data subject to legal exceptions.
+6. Your Rights and Choices
+You may have the following rights regarding your personal data (subject to applicable law):
+
+Access, correction, or deletion of your information.
+Objection to or restriction of certain processing.
+Data portability (where technically feasible).
+Withdrawal of consent (where processing is based on consent).
+Opt-out of marketing communications.
+
+To exercise these rights, contact us at the details provided in Section 12. We will respond within a reasonable timeframe.
+You can manage cookies and tracking preferences through your browser or device settings.
+7. Data Security
+We implement reasonable administrative, technical, and physical safeguards to protect your personal information. However, no security system is impenetrable. We cannot guarantee absolute security of your data.
+8. International Data Transfers
+AweTravel Limited is based in Uganda. Your data may be transferred to, stored, and processed in other countries where our service providers operate. We ensure appropriate safeguards are in place for such transfers.
+9. Cookies and Tracking Technologies
+We use cookies, pixels, web beacons, and similar technologies to:
+
+Enable essential Platform functions.
+Analyze usage and improve performance.
+Personalize content and advertising.
+Measure effectiveness of marketing campaigns.
+
+You can manage cookie preferences via our Cookie Consent Banner or your browser settings. Note that disabling certain cookies may affect Platform functionality.
+Third-party analytics and advertising partners (e.g., Google Analytics) may also set cookies. See their respective privacy policies.
+10. Children’s Privacy
+The Services are not intended for individuals under 18 years of age. We do not knowingly collect personal information from children. If we become aware that we have collected data from a child without parental consent, we will take steps to delete it.
+11. Third-Party Links
+The Platform may contain links to third-party websites or services. We are not responsible for the privacy practices of those third parties. We encourage you to review their privacy policies.
+12. Contact Us
+If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:
+AweTravel Limited
+Email: privacy@awetravel.com
+Address: [Insert Physical Address, Kampala, Uganda]
+We will respond to your inquiry as soon as possible.
+
+By using AweTravel, you acknowledge that you have read and understood this Privacy Policy.
+
+This is a comprehensive template. It is recommended to have it reviewed and customized by a qualified legal professional in your jurisdiction to ensure full compliance with applicable data protection laws (such as the Data Protection and Privacy Act of Uganda, GDPR if you serve EU users, or other relevant regulations).3.4s
