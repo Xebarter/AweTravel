@@ -114,7 +114,7 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
               className="sm:w-auto"
             >
               <Button className="h-11 w-full font-semibold shadow-sm sm:w-auto">
-                Select trip
+                Book trip
               </Button>
             </Link>
           </div>
