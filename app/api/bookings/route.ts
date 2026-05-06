@@ -88,9 +88,6 @@ export async function GET(request: NextRequest) {
  * Create a booking: signed-in passengers use RLS; guests use service role with contact details.
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createSupabaseRouteClient();
-  if (!supabase) return jsonError('Server misconfigured', 500);
-
   let body: unknown;
   try {
     body = await request.json();
@@ -181,8 +178,9 @@ export async function POST(request: NextRequest) {
           payment_status: 'pending',
         };
 
-    const client = !user ? admin : supabase;
-    const { data, error } = await client
+    // Always insert with service role: passenger identity is validated above (`user` from Bearer/cookies, or guest fields).
+    // Cookie-only RLS would fail when the session is carried as Bearer but auth cookies are empty (common on Vercel).
+    const { data, error } = await admin
       .from('bookings')
       .insert(insertRow)
       .select(
@@ -200,8 +198,12 @@ export async function POST(request: NextRequest) {
     // Likely booking_code conflict; retry.
   }
 
+  const errMsg =
+    lastError && typeof lastError === 'object' && 'message' in lastError
+      ? String((lastError as { message?: string }).message)
+      : '';
   console.error('Booking creation error:', lastError);
-  return jsonError('Failed to create booking', 500);
+  return jsonError(errMsg ? `Failed to create booking: ${errMsg}` : 'Failed to create booking', 500);
 }
 
 /**
