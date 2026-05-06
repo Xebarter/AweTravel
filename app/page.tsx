@@ -10,8 +10,7 @@ import { SiteFooter } from '@/components/site/SiteFooter';
 import { HomeAdBanner } from '@/components/site/HomeAdBanner';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -162,20 +161,18 @@ function HomeBookingSection() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           <div className="space-y-4 lg:col-span-5">
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Book a trip</p>
+            <div className="space-y-1">
               <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Search routes and book in minutes
+                Find a trip
               </h2>
-              <p className="text-sm text-muted-foreground sm:text-base">
-                Compare schedules across multiple transport companies and pick the time that works for you.
+              <p className="text-sm text-muted-foreground">
+                Origin, destination, and date.
               </p>
             </div>
 
             <Card className="border-border/80 shadow-sm">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-base">Trip details</CardTitle>
-                <CardDescription>Enter your route and travel date to see schedules.</CardDescription>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Search</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {error ? (
@@ -247,13 +244,9 @@ function HomeBookingSection() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Button type="button" className="h-11 w-full font-semibold shadow-sm sm:w-auto" onClick={() => void runSearch()} disabled={loading}>
                     <Search className="size-4" aria-hidden />
-                    {loading ? 'Searching…' : 'Search schedules'}
+                    {loading ? 'Searching…' : 'Search'}
                   </Button>
                 </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Schedules below come from operator data in the database. You can book without an account; sign in to manage all your trips in one place.
-                </p>
               </CardContent>
             </Card>
           </div>
@@ -261,32 +254,28 @@ function HomeBookingSection() {
           <div className="space-y-5 lg:col-span-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">Routes & schedules</h3>
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">Results</h3>
                 <p className="text-sm text-muted-foreground">
                   {routes ? (
                     <>
-                      Showing <span className="font-medium text-foreground">{routes.length}</span> option{routes.length === 1 ? '' : 's'}.
+                      <span className="font-medium text-foreground">{routes.length}</span>
+                      {routes.length === 1 ? ' option' : ' options'}
                     </>
                   ) : (
-                    'Loading schedules from the database…'
+                    'Loading…'
                   )}
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-2 sm:items-end">
-                {isApprovedTransporter ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/transporter/routes">Manage routes</Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href="/transporter/schedules">Manage schedules</Link>
-                    </Button>
-                  </div>
-                ) : null}
-                <Badge variant="secondary" className="w-fit font-normal bg-primary/10 text-primary">
-                  Database
-                </Badge>
-              </div>
+              {isApprovedTransporter ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/transporter/routes">Routes</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/transporter/schedules">Schedules</Link>
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             {loading ? (
@@ -298,15 +287,15 @@ function HomeBookingSection() {
               <Card className="border-dashed border-border/80 bg-muted/20">
                 <CardContent className="flex flex-col items-start gap-4 py-10 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <p className="text-base font-semibold text-foreground">No schedules found</p>
-                    <p className="text-sm text-muted-foreground">Try different cities or another date.</p>
+                    <p className="text-base font-semibold text-foreground">No results</p>
+                    <p className="text-sm text-muted-foreground">Adjust route or date.</p>
                   </div>
                   <Button
                     variant="outline"
                     onClick={() => void showAllRoutes()}
                     className="w-full sm:w-auto"
                   >
-                    Show all routes
+                    Browse all
                   </Button>
                 </CardContent>
               </Card>
@@ -360,62 +349,61 @@ export default function HomePage() {
         <HomeBookingSection />
       </Suspense>
 
-      {/* Features Section */}
-      <section className="bg-secondary/30 py-20">
+      <section className="border-t border-border bg-secondary/30 py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h3 className="text-3xl font-bold text-center mb-12">Why Choose AweTravel?</h3>
+          <h3 className="text-center text-lg font-semibold tracking-tight text-foreground mb-10">
+            For travelers and operators
+          </h3>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-background rounded-lg p-8 border border-border">
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-                <MapPin className="h-6 w-6 text-accent" />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-background rounded-lg p-6 border border-border">
+              <div className="w-11 h-11 rounded-lg bg-accent/10 flex items-center justify-center mb-3">
+                <MapPin className="h-5 w-5 text-accent" />
               </div>
-              <h4 className="font-semibold text-lg mb-2">Find Routes</h4>
-              <p className="text-muted-foreground">
-                Search from hundreds of routes and compare prices across multiple transport companies instantly.
+              <h4 className="font-semibold mb-1.5">Routes in one place</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Search and compare departures from participating operators.
               </p>
             </div>
 
-            <div className="bg-background rounded-lg p-8 border border-border">
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-accent" />
+            <div className="bg-background rounded-lg p-6 border border-border">
+              <div className="w-11 h-11 rounded-lg bg-accent/10 flex items-center justify-center mb-3">
+                <Users className="h-5 w-5 text-accent" />
               </div>
-              <h4 className="font-semibold text-lg mb-2">Trusted Partners</h4>
-              <p className="text-muted-foreground">
-                Book with verified transport companies and enjoy secure, reliable travel experiences.
+              <h4 className="font-semibold mb-1.5">Verified operators</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Book with approved transport companies on the platform.
               </p>
             </div>
 
-            <div className="bg-background rounded-lg p-8 border border-border">
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4">
-                <TrendingUp className="h-6 w-6 text-accent" />
+            <div className="bg-background rounded-lg p-6 border border-border">
+              <div className="w-11 h-11 rounded-lg bg-accent/10 flex items-center justify-center mb-3">
+                <TrendingUp className="h-5 w-5 text-accent" />
               </div>
-              <h4 className="font-semibold text-lg mb-2">Best Prices</h4>
-              <p className="text-muted-foreground">
-                Get the best rates and enjoy transparent pricing with no hidden charges.
+              <h4 className="font-semibold mb-1.5">Clear pricing</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                See fares upfront before you confirm.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-primary text-white py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-3xl font-bold mb-4">Ready to Book Your Next Trip?</h3>
-          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
-            Join thousands of travelers and transport operators who trust AweTravel for safe, convenient, and affordable travel.
-          </p>
-          {!isLoading && !user && (
+      {!isLoading && !user ? (
+        <section className="bg-primary text-white py-14">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-sm text-white/90 mb-6">
+              Save bookings and preferences with a free account.
+            </p>
             <Link href="/signup">
               <Button size="lg" className="bg-accent hover:bg-accent-dark">
-                Get Started Today
+                Sign up
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      ) : null}
 
       <SiteFooter />
     </div>
