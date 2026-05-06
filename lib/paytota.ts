@@ -5,6 +5,8 @@
 
 export type PaytotaCreatePurchaseInput = {
   bookingId: string;
+  /** For product label when charging for multiple seats. */
+  ticketCount?: number;
   amountMinor: number;
   currency: string;
   client: {
@@ -156,7 +158,10 @@ export async function createPaytotaPurchase(input: PaytotaCreatePurchaseInput): 
       currency,
       products: [
         {
-          name: `AweTravel booking ${input.bookingId.slice(0, 8)}`,
+          name:
+            (input.ticketCount ?? 1) > 1
+              ? `AweTravel · ${input.ticketCount} tickets (${input.bookingId.slice(0, 8)})`
+              : `AweTravel booking ${input.bookingId.slice(0, 8)}`,
           price: String(Math.max(0, Math.round(input.amountMinor))),
         },
       ],

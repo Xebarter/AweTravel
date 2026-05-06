@@ -1,24 +1,38 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getUserFromRouteRequest } from '@/lib/auth/route-request-user';
 import { createSupabaseRouteClient } from '@/lib/supabase-route';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { hasSeatConflict } from '@/lib/bookings-seat-conflict';
+import { MAX_TICKETS_PER_CHECKOUT } from '@/lib/bookings/constants';
 import { enrichPassengerBookings, type BookingRow } from '@/lib/passenger-bookings-enrich';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
-const createSchema = z.object({
-  routeId: z.string().uuid(),
-  departureId: z.string().uuid().optional().nullable(),
-  travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  seatCode: z.string().min(1).max(16),
-  guestFullName: z.string().trim().min(1).max(200).optional(),
-  guestEmail: z.string().trim().email().optional(),
-  guestPhone: z.string().trim().max(32).optional().nullable(),
-});
+const createSchema = z
+  .object({
+    routeId: z.string().uuid(),
+    departureId: z.string().uuid().optional().nullable(),
+    travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    /** One or more seats (same trip); paid together when length > 1 (`checkout_group_id`). */
+    seatCodes: z
+      .array(z.string().min(1).max(16))
+      .min(1)
+      .max(MAX_TICKETS_PER_CHECKOUT),
+    guestFullName: z.string().trim().min(1).max(200).optional(),
+    guestEmail: z.string().trim().email().optional(),
+    guestPhone: z.string().trim().max(32).optional().nullable(),
+  })
+  .superRefine((val, ctx) => {
+    const normalized = val.seatCodes.map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const uniq = new Set(normalized);
+    if (uniq.size !== normalized.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Duplicate seats in request' });
+    }
+  });
 
 const patchSchema = z.object({
   id: z.string().uuid(),
@@ -98,7 +112,10 @@ export async function POST(request: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? 'Invalid payload', 400);
 
-  const { routeId, departureId, travelDate, seatCode, guestFullName, guestEmail, guestPhone } = parsed.data;
+  const { routeId, departureId, travelDate, seatCodes, guestFullName, guestEmail, guestPhone } = parsed.data;
+  const normalizedCodes = Array.from(
+    new Set(seatCodes.map((s) => s.trim().toUpperCase()).filter(Boolean)),
+  ) as string[];
 
   const user = await getUserFromRouteRequest(request);
 
@@ -133,77 +150,106 @@ export async function POST(request: NextRequest) {
     typeof departure?.price_override_minor === 'number' ? departure.price_override_minor : (route.base_price_minor as number);
   const currency = (route.currency as string) || 'UGX';
 
-  const normalizedSeat = seatCode.trim().toUpperCase();
   if (departureId) {
-    const taken = await hasSeatConflict(admin, {
-      departureId,
-      travelDate,
-      seatCode: normalizedSeat,
-    });
-    if (taken) return jsonError('Seat is no longer available', 409);
+    for (const seat of normalizedCodes) {
+      const taken = await hasSeatConflict(admin, {
+        departureId,
+        travelDate,
+        seatCode: seat,
+      });
+      if (taken) return jsonError(`Seat ${seat} is no longer available`, 409);
+    }
   }
 
+  const checkoutGroupId = normalizedCodes.length > 1 ? randomUUID() : null;
   const year = new Date().getFullYear();
   const maxAttempts = 4;
-  let lastError: unknown = null;
+  const createdRows: BookingRow[] = [];
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const bookingCode = `AWE-${year}-${String(Math.floor(Math.random() * 9_999_999)).padStart(7, '0')}`;
-    const insertRow = !user
-      ? {
-          booking_code: bookingCode,
-          passenger_user_id: null as string | null,
-          guest_full_name: guestFullName!,
-          guest_email: guestEmail!,
-          guest_phone: guestPhone?.trim() ? guestPhone.trim() : null,
-          route_id: routeId,
-          departure_id: departureId ?? null,
-          travel_date: travelDate,
-          seat_code: normalizedSeat,
-          status: 'pending',
-          amount_minor: amountMinor,
-          currency,
-          payment_status: 'pending',
-        }
-      : {
-          booking_code: bookingCode,
-          passenger_user_id: user.id,
-          route_id: routeId,
-          departure_id: departureId ?? null,
-          travel_date: travelDate,
-          seat_code: normalizedSeat,
-          status: 'pending',
-          amount_minor: amountMinor,
-          currency,
-          payment_status: 'pending',
-        };
+  for (const normalizedSeat of normalizedCodes) {
+    let lastError: unknown = null;
+    let inserted: BookingRow | null = null;
 
-    // Always insert with service role: passenger identity is validated above (`user` from Bearer/cookies, or guest fields).
-    // Cookie-only RLS would fail when the session is carried as Bearer but auth cookies are empty (common on Vercel).
-    const { data, error } = await admin
-      .from('bookings')
-      .insert(insertRow)
-      .select(
-        'id,booking_code,route_id,departure_id,travel_date,seat_code,status,amount_minor,currency,payment_status,created_at',
-      )
-      .maybeSingle();
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const bookingCode = `AWE-${year}-${String(Math.floor(Math.random() * 9_999_999)).padStart(7, '0')}`;
+      const insertRow = !user
+        ? {
+            booking_code: bookingCode,
+            passenger_user_id: null as string | null,
+            guest_full_name: guestFullName!,
+            guest_email: guestEmail!,
+            guest_phone: guestPhone?.trim() ? guestPhone.trim() : null,
+            route_id: routeId,
+            departure_id: departureId ?? null,
+            travel_date: travelDate,
+            seat_code: normalizedSeat,
+            status: 'pending',
+            amount_minor: amountMinor,
+            currency,
+            payment_status: 'pending',
+            ...(checkoutGroupId ? { checkout_group_id: checkoutGroupId } : {}),
+          }
+        : {
+            booking_code: bookingCode,
+            passenger_user_id: user.id,
+            route_id: routeId,
+            departure_id: departureId ?? null,
+            travel_date: travelDate,
+            seat_code: normalizedSeat,
+            status: 'pending',
+            amount_minor: amountMinor,
+            currency,
+            payment_status: 'pending',
+            ...(checkoutGroupId ? { checkout_group_id: checkoutGroupId } : {}),
+          };
 
-    if (!error && data) {
-      const created = data as BookingRow;
-      const [enriched] = await enrichPassengerBookings(admin, [created]);
-      return NextResponse.json({ success: true, data: enriched }, { status: 201 });
+      const { data, error } = await admin
+        .from('bookings')
+        .insert(insertRow)
+        .select(
+          'id,booking_code,route_id,departure_id,travel_date,seat_code,status,amount_minor,currency,payment_status,created_at',
+        )
+        .maybeSingle();
+
+      if (!error && data) {
+        inserted = data as BookingRow;
+        break;
+      }
+      lastError = error;
     }
 
-    lastError = error;
-    // Likely booking_code conflict; retry.
+    if (!inserted) {
+      if (checkoutGroupId) {
+        await admin.from('bookings').delete().eq('checkout_group_id', checkoutGroupId);
+      } else if (createdRows.length) {
+        await admin.from('bookings').delete().in(
+          'id',
+          createdRows.map((r) => r.id),
+        );
+      }
+      const errMsg =
+        lastError && typeof lastError === 'object' && 'message' in lastError
+          ? String((lastError as { message?: string }).message)
+          : '';
+      console.error('Booking creation error:', lastError);
+      return jsonError(errMsg ? `Failed to create booking: ${errMsg}` : 'Failed to create booking', 500);
+    }
+
+    createdRows.push(inserted);
   }
 
-  const errMsg =
-    lastError && typeof lastError === 'object' && 'message' in lastError
-      ? String((lastError as { message?: string }).message)
-      : '';
-  console.error('Booking creation error:', lastError);
-  return jsonError(errMsg ? `Failed to create booking: ${errMsg}` : 'Failed to create booking', 500);
+  const enriched = await enrichPassengerBookings(admin, createdRows);
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        bookings: enriched,
+        bookingIds: enriched.map((b) => b.id),
+        checkoutGroupId,
+      },
+    },
+    { status: 201 },
+  );
 }
 
 /**

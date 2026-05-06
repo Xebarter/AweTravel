@@ -9,9 +9,11 @@ import { AlertCircle } from 'lucide-react';
 interface SeatSelectorProps {
   seats: Seat[];
   bookedSeats?: string[];
-  /** Controlled selection (matches parent booking state, including resumed bookings). */
-  selectedSeat?: Seat | null;
-  onSelect: (seat: Seat) => void;
+  /** Controlled multi-selection (order preserved). */
+  selectedSeats: Seat[];
+  /** Max selectable seats (e.g. 1 when resuming a single pending booking). */
+  maxTickets: number;
+  onToggleSeat: (seat: Seat) => void;
   vehicleType: RouteType;
   passengerCapacity?: number;
   registration?: string;
@@ -21,28 +23,38 @@ interface SeatSelectorProps {
 export function SeatSelector({
   seats,
   bookedSeats = [],
-  selectedSeat = null,
-  onSelect,
+  selectedSeats,
+  maxTickets,
+  onToggleSeat,
   vehicleType,
   passengerCapacity,
   registration,
   routeLabel,
 }: SeatSelectorProps) {
   const handleSeatClick = (seat: Seat) => {
-    onSelect(seat);
+    onToggleSeat(seat);
   };
 
+  const subtotal = selectedSeats.reduce((s, x) => s + x.base_price, 0);
+
   return (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle>Select Your Seat</CardTitle>
-        <CardDescription>
-          Tap a seat on the layout (front rows are toward the top). We&apos;ll reserve it and move you to secure checkout
-          when your details are complete.
+    <Card id="seat-map" className="scroll-mt-24 border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Seat map</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">
+          Front of vehicle at the top.
+          {maxTickets > 1 ? (
+            <>
+              {' '}
+              Tap up to {maxTickets} seats ({selectedSeats.length}/{maxTickets} selected).
+            </>
+          ) : (
+            <> Tap a seat to select it.</>
+          )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap gap-4 text-sm">
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground sm:text-sm">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-lg border border-border bg-secondary" />
             <span className="text-muted-foreground">Available</span>
@@ -58,12 +70,12 @@ export function SeatSelector({
         </div>
 
         {seats.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No seats available for this departure.</p>
+          <p className="text-sm text-muted-foreground">No seats left.</p>
         ) : (
           <VehicleSeatMap
             seats={seats}
             bookedSeatCodes={bookedSeats}
-            selectedSeatId={selectedSeat?.id ?? null}
+            selectedSeatIds={selectedSeats.map((s) => s.id)}
             onSeatSelect={handleSeatClick}
             vehicleType={vehicleType}
             passengerCapacity={passengerCapacity}
@@ -72,20 +84,27 @@ export function SeatSelector({
           />
         )}
 
-        {selectedSeat ? (
-          <div className="rounded-lg border border-accent/20 bg-accent/10 p-4">
-            <p className="text-sm font-medium text-foreground">
-              Selected seat: <span className="font-bold text-accent">{selectedSeat.seat_number}</span>
+        {selectedSeats.length > 0 ? (
+          <div className="rounded-lg border border-accent/20 bg-accent/10 px-3 py-2 space-y-1">
+            <p className="text-sm text-foreground">
+              <span className="font-semibold text-accent">
+                {selectedSeats.map((s) => s.seat_number).join(', ')}
+              </span>
+              {selectedSeats.length > 1 ? (
+                <span className="text-muted-foreground">
+                  {' '}
+                  · {selectedSeats.length} tickets
+                </span>
+              ) : null}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Price:{' '}
-              <span className="font-semibold text-accent">{formatCurrency(selectedSeat.base_price)}</span>
+            <p className="text-sm tabular-nums font-medium text-foreground">
+              Subtotal <span className="text-muted-foreground">·</span> {formatCurrency(subtotal)}
             </p>
           </div>
         ) : (
-          <div className="flex gap-3 rounded-lg border border-warning/20 bg-warning/10 p-4">
-            <AlertCircle className="h-5 w-5 shrink-0 text-warning" aria-hidden />
-            <p className="text-sm text-warning">Please select a seat to continue</p>
+          <div className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2">
+            <AlertCircle className="size-4 shrink-0 text-warning" aria-hidden />
+            <p className="text-sm text-warning">Select at least one seat</p>
           </div>
         )}
       </CardContent>

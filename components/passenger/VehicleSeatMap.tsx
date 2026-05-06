@@ -15,7 +15,8 @@ import { Armchair, GripVertical } from 'lucide-react';
 export type VehicleSeatMapProps = {
   seats: Seat[];
   bookedSeatCodes: string[];
-  selectedSeatId: string | null;
+  /** Selected seat ids (supports multi-select). */
+  selectedSeatIds: string[];
   onSeatSelect: (seat: Seat) => void;
   vehicleType: RouteType;
   /** Vehicle passenger capacity (drives 1+2 vs 2+3 schematic). Defaults to seats.length. */
@@ -38,7 +39,7 @@ function seatAriaLabel(seat: Seat, booked: boolean, selected: boolean): string {
 export function VehicleSeatMap({
   seats,
   bookedSeatCodes,
-  selectedSeatId,
+  selectedSeatIds,
   onSeatSelect,
   vehicleType,
   passengerCapacity,
@@ -52,6 +53,7 @@ export function VehicleSeatMap({
       ? 'grid-cols-[1fr_0.42fr_1fr_1fr]'
       : 'grid-cols-[1fr_1fr_0.42fr_1fr_1fr_1fr]';
   const bookedSet = new Set(bookedSeatCodes.map(normalizeSeatCode));
+  const selectedSet = new Set(selectedSeatIds.map(normalizeSeatCode));
   const { bodyWidth, cornerRadius, windshieldDepth } = vehicleSchematicMetrics(vehicleType);
 
   const shellId = `vss-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -157,7 +159,7 @@ export function VehicleSeatMap({
                   const seat = seats[cell.seatIndex];
                   if (!seat) return <div key={`${ri}-${ci}`} className="min-h-11" aria-hidden />;
                   const isBooked = isSeatBooked(seat, bookedSet);
-                  const selected = selectedSeatId === seat.id;
+                  const selected = selectedSet.has(normalizeSeatCode(seat.id)) || selectedSet.has(normalizeSeatCode(seat.seat_number));
                   const premium = seat.seat_type === 'premium';
                   const handicap = seat.seat_type === 'handicap';
 

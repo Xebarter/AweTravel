@@ -177,9 +177,9 @@ export default function PassengerDashboardPage() {
                 icon: Ticket,
               },
               {
-                title: 'Payments',
-                description: 'Complete payment for a booking.',
-                href: '/passenger/payment',
+                title: 'Pay a booking',
+                description: 'Open a pending trip from your list to pay.',
+                href: '/passenger/bookings',
                 icon: CreditCard,
               },
               {

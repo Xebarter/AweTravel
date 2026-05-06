@@ -177,7 +177,7 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
   const admin = createSupabaseAdminClient();
   if (!admin) return;
 
-  const bookingId = payload.reference;
+  const bookingRef = payload.reference.trim();
   const purchaseId = payload.id;
 
   if (payload.event_type === 'purchase.paid') {
@@ -187,15 +187,16 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
         payment_status: 'completed',
         status: 'confirmed',
       })
-      .eq('id', bookingId)
+      .or(`id.eq.${bookingRef},checkout_group_id.eq.${bookingRef}`)
       .eq('payment_reference', purchaseId)
-      .select('id')
-      .maybeSingle();
+      .select('id');
     if (error) {
       console.error('[Payment Webhook] booking confirm failed:', error);
       return;
     }
-    if (data) void trySendTicketEmail(bookingId);
+    for (const row of (data ?? []) as { id: string }[]) {
+      void trySendTicketEmail(row.id);
+    }
     return;
   }
 
@@ -203,7 +204,7 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
     const { error } = await admin
       .from('bookings')
       .update({ payment_status: 'failed' })
-      .eq('id', bookingId)
+      .or(`id.eq.${bookingRef},checkout_group_id.eq.${bookingRef}`)
       .eq('payment_reference', purchaseId);
     if (error) {
       console.error('[Payment Webhook] booking failed update:', error);
@@ -215,7 +216,7 @@ async function syncBookingFromWebhook(payload: z.infer<typeof webhookBodySchema>
     const { error } = await admin
       .from('bookings')
       .update({ payment_status: 'cancelled' })
-      .eq('id', bookingId)
+      .or(`id.eq.${bookingRef},checkout_group_id.eq.${bookingRef}`)
       .eq('payment_reference', purchaseId);
     if (error) {
       console.error('[Payment Webhook] booking cancelled update:', error);

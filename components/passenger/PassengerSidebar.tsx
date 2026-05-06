@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CreditCard, LayoutDashboard, Search, Ticket } from 'lucide-react';
+import { LayoutDashboard, Search, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -20,11 +20,6 @@ const navItems = [
     label: 'My bookings',
     href: '/passenger/bookings',
     icon: Ticket,
-  },
-  {
-    label: 'Payments',
-    href: '/passenger/payment',
-    icon: CreditCard,
   },
 ] as const;
 

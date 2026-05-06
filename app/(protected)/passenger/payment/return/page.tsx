@@ -11,10 +11,46 @@ import { getSupabaseAuthHeaderInit } from '@/lib/supabase';
 const POLL_MS = 2500;
 const MAX_POLLS = 48;
 
+async function downloadTicketPdf(bookingId: string, guestEmail: string) {
+  const q = new URLSearchParams();
+  if (guestEmail.trim()) q.set('guestEmail', guestEmail.trim());
+  const authHeaders = await getSupabaseAuthHeaderInit();
+  const tRes = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/ticket?${q.toString()}`, {
+    credentials: 'include',
+    headers: { ...authHeaders },
+  });
+  if (!tRes.ok) return;
+  const blob = await tRes.blob();
+  const cd = tRes.headers.get('Content-Disposition');
+  let filename = 'AweTravel-ticket.pdf';
+  if (cd) {
+    const m = /filename\*=UTF-8''([^;\n]+)|filename="([^"\n]+)"|filename=([^;\n]+)/i.exec(cd);
+    const raw = (m?.[1] || m?.[2] || m?.[3])?.trim();
+    if (raw) {
+      try {
+        filename = decodeURIComponent(raw.replace(/^"+|"+$/g, ''));
+      } catch {
+        filename = raw.replace(/^"+|"+$/g, '');
+      }
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function ReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId') || '';
+  const checkoutGroupId = searchParams.get('checkoutGroupId') || '';
+  const payRef = bookingId || checkoutGroupId;
   const tripId = searchParams.get('tripId') || '';
   const statusParam = searchParams.get('status') || '';
   const guestEmail = searchParams.get('guestEmail') || '';
@@ -24,7 +60,7 @@ function ReturnContent() {
   const polls = useRef(0);
 
   useEffect(() => {
-    if (!bookingId) {
+    if (!payRef) {
       setFailed(true);
       setMessage('Missing booking reference.');
       return;
@@ -41,7 +77,9 @@ function ReturnContent() {
     }
 
     const tick = async () => {
-      const q = new URLSearchParams({ bookingId });
+      const q = new URLSearchParams();
+      if (bookingId) q.set('bookingId', bookingId);
+      if (checkoutGroupId) q.set('checkoutGroupId', checkoutGroupId);
       if (guestEmail.trim()) q.set('guestEmail', guestEmail.trim());
 
       const authHeaders = await getSupabaseAuthHeaderInit();
@@ -51,7 +89,11 @@ function ReturnContent() {
       });
       const json = (await res.json()) as {
         success?: boolean;
-        data?: { bookingPaymentStatus?: string; paytotaStatus?: string | null };
+        data?: {
+          bookingPaymentStatus?: string;
+          paytotaStatus?: string | null;
+          bookingIds?: string[];
+        };
       };
 
       if (!res.ok || !json.success || !json.data) {
@@ -60,48 +102,26 @@ function ReturnContent() {
       }
 
       if (json.data.bookingPaymentStatus === 'completed' || json.data.paytotaStatus === 'paid') {
-        const q = new URLSearchParams({ bookingId });
-        if (guestEmail.trim()) q.set('guestEmail', guestEmail.trim());
-        const authHeaders = await getSupabaseAuthHeaderInit();
-        try {
-          const tRes = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}/ticket?${q.toString()}`, {
-            credentials: 'include',
-            headers: { ...authHeaders },
-          });
-          if (tRes.ok) {
-            const blob = await tRes.blob();
-            const cd = tRes.headers.get('Content-Disposition');
-            let filename = 'AweTravel-ticket.pdf';
-            if (cd) {
-              const m =
-                /filename\*=UTF-8''([^;\n]+)|filename="([^"\n]+)"|filename=([^;\n]+)/i.exec(cd);
-              const raw = (m?.[1] || m?.[2] || m?.[3])?.trim();
-              if (raw) {
-                try {
-                  filename = decodeURIComponent(raw.replace(/^"+|"+$/g, ''));
-                } catch {
-                  filename = raw.replace(/^"+|"+$/g, '');
-                }
-              }
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
+        const ids = json.data.bookingIds?.length
+          ? json.data.bookingIds
+          : bookingId
+            ? [bookingId]
+            : [];
+
+        for (let i = 0; i < ids.length; i++) {
+          if (i > 0) await new Promise((r) => window.setTimeout(r, 450));
+          try {
+            await downloadTicketPdf(ids[i]!, guestEmail);
+          } catch {
+            /* best-effort per ticket */
           }
-        } catch {
-          /* best-effort download; user can open booking later */
         }
 
         await new Promise((r) => window.setTimeout(r, 500));
 
+        const firstId = ids[0] || bookingId;
         const dest = tripId
-          ? `/passenger/booking-confirmation?tripId=${encodeURIComponent(tripId)}&bookingId=${encodeURIComponent(bookingId)}`
+          ? `/passenger/booking-confirmation?tripId=${encodeURIComponent(tripId)}&bookingId=${encodeURIComponent(firstId)}`
           : '/passenger/bookings';
         router.replace(dest);
         return;
@@ -119,9 +139,9 @@ function ReturnContent() {
     };
 
     void tick();
-  }, [bookingId, statusParam, tripId, guestEmail, router]);
+  }, [bookingId, checkoutGroupId, payRef, statusParam, tripId, guestEmail, router]);
 
-  if (!bookingId) {
+  if (!payRef) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-12">
         <Card className="w-full max-w-md border-border/80">
@@ -141,9 +161,12 @@ function ReturnContent() {
 
   const retryQs = new URLSearchParams();
   if (tripId) retryQs.set('tripId', tripId);
-  retryQs.set('bookingId', bookingId);
+  if (checkoutGroupId) retryQs.set('checkoutGroupId', checkoutGroupId);
+  else if (bookingId) retryQs.set('bookingId', bookingId);
   if (guestEmail.trim()) retryQs.set('guestEmail', guestEmail.trim());
-  const retryHref = `/passenger/payment?${retryQs.toString()}`;
+  const retryHref = tripId
+    ? `/passenger/booking/${encodeURIComponent(tripId)}?${retryQs.toString()}`
+    : `/passenger/bookings`;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background">

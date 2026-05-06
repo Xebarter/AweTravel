@@ -22,7 +22,6 @@ type HomeSearchState = {
   from: string;
   to: string;
   date: string;
-  passengers: string;
 };
 
 function todayISO() {
@@ -42,7 +41,7 @@ function HomeBookingSection() {
     const to = searchParams.get('to')?.trim() ?? '';
     const raw = searchParams.get('date')?.trim() ?? '';
     const date = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : todayISO();
-    return { from, to, date, passengers: '1' };
+    return { from, to, date };
   });
 
   const [loading, setLoading] = useState(true);
@@ -211,7 +210,7 @@ function HomeBookingSection() {
                       autoComplete="off"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="home-date" className="flex items-center gap-2">
                       <Calendar className="size-4 text-primary" aria-hidden />
                       Date
@@ -221,21 +220,6 @@ function HomeBookingSection() {
                       type="date"
                       value={form.date}
                       onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="home-passengers" className="flex items-center gap-2">
-                      <Users className="size-4 text-primary" aria-hidden />
-                      Passengers
-                    </Label>
-                    <Input
-                      id="home-passengers"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={form.passengers}
-                      onChange={(e) => setForm((p) => ({ ...p, passengers: e.target.value }))}
                       className="h-11"
                     />
                   </div>

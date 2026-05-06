@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { PAID_SEAT_HOLD_PAYMENT_STATUS } from '@/lib/bookings-paid-seat-hold';
 import type { AvailableRoute, RouteType, Seat, TransportCompany } from '@/lib/types';
 
 export type TripSearchSort = 'price' | 'duration' | 'departure';
@@ -247,7 +248,8 @@ export async function queryTripSearchResults(
       .from('bookings')
       .select('route_id,departure_id')
       .eq('travel_date', date)
-      .in('status', ['pending', 'confirmed'])
+      .eq('payment_status', PAID_SEAT_HOLD_PAYMENT_STATUS)
+      .not('status', 'eq', 'cancelled')
       .in(
         'departure_id',
         pairs.map((p) => p.departure_id),
@@ -446,7 +448,8 @@ export async function fetchDepartureBookingPageData(
     .select('seat_code')
     .eq('departure_id', departureId)
     .eq('travel_date', travelDate)
-    .in('status', ['pending', 'confirmed']);
+    .eq('payment_status', PAID_SEAT_HOLD_PAYMENT_STATUS)
+    .not('status', 'eq', 'cancelled');
 
   if (bookErr) {
     console.error('fetchDepartureBookingPageData bookings:', bookErr);
