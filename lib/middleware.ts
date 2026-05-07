@@ -120,6 +120,7 @@ function isPassengerGuestCheckoutPath(pathname: string): boolean {
   if (pathname === '/passenger/payment' || pathname.startsWith('/passenger/payment/')) return true;
   if (pathname === '/passenger/booking-confirmation' || pathname.startsWith('/passenger/booking-confirmation/'))
     return true;
+  if (pathname === '/passenger/trip' || pathname.startsWith('/passenger/trip/')) return true;
   return false;
 }
 

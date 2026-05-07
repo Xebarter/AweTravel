@@ -8,6 +8,7 @@ import { AvailableRoute } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Clock, MapPin, Route as RouteIcon, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface RouteCardProps {
   route: AvailableRoute;
@@ -138,6 +139,7 @@ function getOperatorInitials(name: string): string {
 }
 
 export function RouteCard({ route, travelDate }: RouteCardProps) {
+  const router = useRouter();
   const minPrice =
     route.available_seats.length > 0 ? Math.min(...route.available_seats.map((s) => s.base_price)) : 0;
   /** True availability (search only materializes up to 60 seat rows for pricing UI). */
@@ -148,6 +150,7 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
   const durationLabel = durationH > 0 ? `${durationH}h ${durationM}m` : `${durationM} min`;
 
   const bookingHref = `/passenger/booking/${route.trip_id}${travelDate ? `?date=${encodeURIComponent(travelDate)}` : ''}`;
+  const detailsHref = `/passenger/trip/${route.trip_id}${travelDate ? `?date=${encodeURIComponent(travelDate)}` : ''}`;
   const limited = seatsAvailable <= 6;
 
   const theme = getOperatorTheme(route.company.id);
@@ -182,12 +185,21 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
   return (
     <Card
       className={cn(
-        'group relative touch-manipulation overflow-hidden border pt-0 shadow-sm transition-[box-shadow,transform,background-color]',
+        'group relative touch-manipulation cursor-pointer overflow-hidden border pt-0 shadow-sm transition-[box-shadow,transform,background-color]',
         'hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm',
         theme.surface,
         theme.surfaceHover,
         theme.border,
       )}
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(detailsHref)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          router.push(detailsHref);
+        }
+      }}
     >
       <CardContent className="p-3 sm:p-6">
         <article className="flex flex-col gap-3 sm:gap-5" aria-label={ariaTrip}>
@@ -280,9 +292,11 @@ export function RouteCard({ route, travelDate }: RouteCardProps) {
                 </p>
               </div>
             </div>
-            <Link href={bookingHref} className="w-full sm:w-auto">
-              <Button className="w-full h-9 sm:h-10 text-sm sm:w-auto">Book trip</Button>
-            </Link>
+            <div className="w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+              <Link href={bookingHref} className="w-full sm:w-auto">
+                <Button className="w-full h-9 sm:h-10 text-sm sm:w-auto">Book trip</Button>
+              </Link>
+            </div>
           </div>
         </article>
       </CardContent>
